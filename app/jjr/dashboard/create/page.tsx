@@ -38,6 +38,7 @@ interface BlogContent {
   keywords: string[];
   image: File | null;
   imagePreview: string | null;
+  imageUrl: string | null; // External URL for image
   isPremium: boolean;
 }
 
@@ -67,6 +68,7 @@ export default function CreateContent() {
     keywords: [],
     image: null,
     imagePreview: null,
+    imageUrl: null,
     isPremium: false
   });
 
@@ -164,6 +166,7 @@ export default function CreateContent() {
           keywords: processedKeywords,
           image: null,
           imagePreview: blogData.image || null,
+          imageUrl: blogData.image || null, // Store the actual URL from database
           isPremium: blogData.is_premium || false
         });
       }
@@ -225,9 +228,19 @@ export default function CreateContent() {
       setBlogContent(prev => ({
         ...prev,
         image: file,
-        imagePreview: URL.createObjectURL(file)
+        imagePreview: URL.createObjectURL(file),
+        imageUrl: null // Clear external URL when new image is selected
       }));
     }
+  };
+
+  const handleImageUrlChange = (url: string) => {
+    setBlogContent(prev => ({
+      ...prev,
+      image: null,
+      imagePreview: url,
+      imageUrl: url
+    }));
   };
 
   const getYoutubeThumbnail = (url: string) => {
@@ -310,13 +323,19 @@ export default function CreateContent() {
             is_premium: blogContent.isPremium,
           };
 
-          // 새로운 이미지가 업로드된 경우에만 image 필드 업데이트
-          // blogContent.image가 있으면 새 이미지, 없으면 기존 이미지 유지
+          // 이미지 처리
           if (blogContent.image) {
-            // 실제 구현에서는 이미지를 Supabase Storage에 업로드해야 함
-            updateData.image = blogContent.imagePreview;
-            console.log('새 이미지 업로드:', blogContent.imagePreview);
+            // 새로운 파일이 업로드된 경우 - 임시로 placeholder 사용
+            // TODO: 실제 구현에서는 Supabase Storage에 업로드
+            alert('주의: 파일 업로드는 아직 구현되지 않았습니다. 외부 URL을 사용해주세요.');
+            updateData.image = '/placeholder.svg';
+            console.log('새 이미지 파일 업로드 필요');
+          } else if (blogContent.imageUrl) {
+            // 외부 URL이 입력되거나 변경된 경우
+            updateData.image = blogContent.imageUrl;
+            console.log('이미지 URL 사용:', blogContent.imageUrl);
           } else {
+            // imageUrl이 null이고 새 파일도 없으면 기존 이미지 유지
             console.log('기존 이미지 유지 - image 필드 업데이트하지 않음');
           }
 
@@ -338,10 +357,17 @@ export default function CreateContent() {
             created_at: new Date().toISOString()
           };
 
-          // 이미지가 있는 경우에만 image 필드 추가
-          if (blogContent.image && blogContent.imagePreview) {
-            insertData.image = blogContent.imagePreview;
-            console.log('새 블로그 이미지 추가:', blogContent.imagePreview);
+          // 이미지 처리
+          if (blogContent.image) {
+            // 새로운 파일이 업로드된 경우 - 임시로 placeholder 사용
+            // TODO: 실제 구현에서는 Supabase Storage에 업로드
+            alert('주의: 파일 업로드는 아직 구현되지 않았습니다. 외부 URL을 사용해주세요.');
+            insertData.image = '/placeholder.svg';
+            console.log('새 이미지 파일 업로드 필요');
+          } else if (blogContent.imageUrl) {
+            // 외부 URL이 입력된 경우
+            insertData.image = blogContent.imageUrl;
+            console.log('이미지 URL 사용:', blogContent.imageUrl);
           }
 
           const { data, error } = await supabaseClient
@@ -535,24 +561,35 @@ export default function CreateContent() {
 
                     <div>
                       <label className="text-sm font-medium mb-2 block">표지 이미지</label>
-                      <div className="flex items-center space-x-4">
-                        <div className="flex-1">
-                          <input
-                            type="file"
-                            accept="image/*"
-                            onChange={handleImageUpload}
-                            className="w-full p-2 border border-input rounded-md"
-                          />
-                        </div>
-                        {blogContent.imagePreview && (
-                          <div className="w-20 h-20 border rounded-lg overflow-hidden">
-                            <img
-                              src={blogContent.imagePreview}
-                              alt="미리보기"
-                              className="w-full h-full object-cover"
+                      <div className="space-y-2">
+                        <div className="flex items-center space-x-4">
+                          <div className="flex-1">
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={handleImageUpload}
+                              className="w-full p-2 border border-input rounded-md"
                             />
                           </div>
-                        )}
+                          {blogContent.imagePreview && (
+                            <div className="w-20 h-20 border rounded-lg overflow-hidden">
+                              <img
+                                src={blogContent.imagePreview}
+                                alt="미리보기"
+                                className="w-full h-full object-cover"
+                              />
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <span className="text-sm text-muted-foreground">또는 URL 입력:</span>
+                          <Input
+                            value={blogContent.imageUrl || ''}
+                            onChange={(e) => handleImageUrlChange(e.target.value)}
+                            placeholder="https://example.com/image.jpg"
+                            className="flex-1"
+                          />
+                        </div>
                       </div>
                     </div>
 
