@@ -324,18 +324,17 @@ export default function CreateContent() {
           };
 
           // 이미지 처리
-          if (blogContent.image) {
-            // 새로운 파일이 업로드된 경우 - 임시로 placeholder 사용
-            // TODO: 실제 구현에서는 Supabase Storage에 업로드
-            alert('주의: 파일 업로드는 아직 구현되지 않았습니다. 외부 URL을 사용해주세요.');
-            updateData.image = '/placeholder.svg';
-            console.log('새 이미지 파일 업로드 필요');
-          } else if (blogContent.imageUrl) {
-            // 외부 URL이 입력되거나 변경된 경우
+          if (blogContent.imageUrl && blogContent.imageUrl !== '') {
+            // 외부 URL이 입력된 경우 (수정됨)
             updateData.image = blogContent.imageUrl;
-            console.log('이미지 URL 사용:', blogContent.imageUrl);
+            console.log('이미지 URL 업데이트:', blogContent.imageUrl);
+          } else if (blogContent.image) {
+            // 새로운 파일이 업로드된 경우 - 기본 이미지 사용
+            alert('파일 업로드 기능은 준비 중입니다. 외부 이미지 URL을 입력해주세요.');
+            // 파일이 업로드되었지만 URL이 없으면 기존 이미지 유지
+            console.log('파일 업로드 - 기존 이미지 유지');
           } else {
-            // imageUrl이 null이고 새 파일도 없으면 기존 이미지 유지
+            // 변경사항 없으면 기존 이미지 유지
             console.log('기존 이미지 유지 - image 필드 업데이트하지 않음');
           }
 
@@ -358,16 +357,18 @@ export default function CreateContent() {
           };
 
           // 이미지 처리
-          if (blogContent.image) {
-            // 새로운 파일이 업로드된 경우 - 임시로 placeholder 사용
-            // TODO: 실제 구현에서는 Supabase Storage에 업로드
-            alert('주의: 파일 업로드는 아직 구현되지 않았습니다. 외부 URL을 사용해주세요.');
-            insertData.image = '/placeholder.svg';
-            console.log('새 이미지 파일 업로드 필요');
-          } else if (blogContent.imageUrl) {
+          if (blogContent.imageUrl && blogContent.imageUrl !== '') {
             // 외부 URL이 입력된 경우
             insertData.image = blogContent.imageUrl;
             console.log('이미지 URL 사용:', blogContent.imageUrl);
+          } else if (blogContent.image) {
+            // 파일이 업로드되었지만 URL이 없는 경우
+            alert('파일 업로드 기능은 준비 중입니다. 외부 이미지 URL을 입력해주세요.');
+            console.log('파일 업로드 - 이미지 없이 저장');
+          } else {
+            // 이미지가 없는 경우 기본 이미지 사용
+            insertData.image = 'https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=800&auto=format&fit=crop';
+            console.log('기본 이미지 사용');
           }
 
           const { data, error } = await supabaseClient
