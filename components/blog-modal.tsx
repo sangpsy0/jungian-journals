@@ -14,6 +14,7 @@ interface BlogModalProps {
     thumbnail: string
     addedDate: string
     content?: string
+    isPremium?: boolean
   }
   isOpen: boolean
   onClose: () => void
@@ -59,7 +60,7 @@ export function BlogModal({ blog, isOpen, onClose, canReadContent, onUpgrade }: 
         </div>
 
         <div className="prose prose-gray max-w-none">
-          {canReadContent ? (
+          {(!blog.isPremium || canReadContent) ? (
             blog.content ? (
               <div className="whitespace-pre-wrap leading-relaxed">
                 {blog.content.split("\n").map((line, index) => {
@@ -102,18 +103,19 @@ export function BlogModal({ blog, isOpen, onClose, canReadContent, onUpgrade }: 
               <p className="text-muted-foreground">블로그 내용을 불러올 수 없습니다.</p>
             )
           ) : (
-            <div className="text-center py-12 bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg border-2 border-dashed border-gray-300">
-              <Lock className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-xl font-semibold text-gray-700 mb-2">프리미엄 콘텐츠</h3>
+            <div className="text-center py-12 bg-gradient-to-br from-amber-50 to-amber-100 rounded-lg border-2 border-dashed border-amber-300">
+              <Lock className="w-16 h-16 text-amber-500 mx-auto mb-4" />
+              <h3 className="text-xl font-semibold text-gray-700 mb-2">프리미엄 회원 전용 콘텐츠</h3>
               <p className="text-gray-600 mb-6 max-w-md mx-auto">
-                AI가 작성한 고품질 블로그 글의 전체 내용을 읽으려면 프리미엄 구독이 필요합니다.
+                이 콘텐츠는 프리미엄 회원만 읽을 수 있습니다.<br/>
+                AI가 작성한 고품질 블로그 전문을 보려면 프리미엄 구독이 필요합니다.
               </p>
               <Button
                 onClick={onUpgrade}
-                className="bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700"
+                className="bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700"
               >
                 <Star className="w-4 h-4 mr-2" />
-                프리미엄 업그레이드
+                프리미엄 회원 가입하기
               </Button>
             </div>
           )}
