@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import { Search, Play, Tag, Calendar, Star } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -11,136 +11,110 @@ import { BlogModal } from "@/components/blog-modal"
 import GoogleLoginButton from "@/components/google-login-button"
 import { PremiumPayment } from "@/components/premium-payment"
 import { useAuth } from "@/components/auth-provider"
+import { supabase } from "@/lib/supabase"
 
-const sampleVideos = [
-  {
-    id: "1",
-    title: "Complete Next.js 14 Guide",
-    summary: "Learn about Next.js 14's new features and App Router usage in detail",
-    keywords: ["NextJS", "React", "WebDev", "JavaScript"],
-    youtubeId: "dQw4w9WgXcQ",
-    thumbnail: "/nextjs-tutorial-thumbnail.jpg",
-    addedDate: "2024-01-15",
-    tab: "Journals" as const,
-    type: "video" as const,
-  },
-  {
-    id: "2",
-    title: "Mastering React Hooks",
-    summary: "Complete guide from useState, useEffect to custom hooks",
-    keywords: ["React", "Hooks", "useState", "useEffect"],
-    youtubeId: "dQw4w9WgXcQ",
-    thumbnail: "/react-hooks-tutorial.png",
-    addedDate: "2024-01-10",
-    tab: "Books" as const,
-    type: "video" as const,
-  },
-  {
-    id: "3",
-    title: "Building Design Systems",
-    summary: "Creating design systems with Figma and Storybook",
-    keywords: ["DesignSystem", "Figma", "Storybook", "UIUX"],
-    youtubeId: "dQw4w9WgXcQ",
-    thumbnail: "/design-system-figma.jpg",
-    addedDate: "2024-01-12",
-    tab: "Fairy Tales" as const,
-    type: "video" as const,
-    isPremium: true,
-  },
-  {
-    id: "4",
-    title: "Advanced TypeScript Patterns",
-    summary: "Generics, utility types, conditional types and advanced TypeScript patterns",
-    keywords: ["TypeScript", "Generics", "Types", "AdvancedPatterns"],
-    youtubeId: "dQw4w9WgXcQ",
-    thumbnail: "/typescript-advanced-patterns.jpg",
-    addedDate: "2024-01-08",
-    tab: "Journals" as const,
-    type: "video" as const,
-  },
-  {
-    id: "5",
-    title: "UX Research Methodology",
-    summary: "User interviews, surveys, A/B testing and other UX research techniques",
-    keywords: ["UXResearch", "UserInterview", "ABTesting", "UX"],
-    youtubeId: "dQw4w9WgXcQ",
-    thumbnail: "/ux-research-methods.png",
-    addedDate: "2024-01-05",
-    tab: "Books" as const,
-    type: "video" as const,
-  },
-  {
-    id: "6",
-    title: "Marketing Automation Strategy",
-    summary: "Maximizing efficiency with email marketing and social media automation",
-    keywords: ["MarketingAutomation", "EmailMarketing", "SocialMedia", "Marketing"],
-    youtubeId: "dQw4w9WgXcQ",
-    thumbnail: "/marketing-automation-strategy.jpg",
-    addedDate: "2024-01-03",
-    tab: "Fairy Tales" as const,
-    type: "video" as const,
-  },
-  {
-    id: "blog1",
-    title: "AI-Analyzed Human Psychology Patterns",
-    summary: "Unconscious behavioral patterns and their meanings analyzed by latest AI technology",
-    keywords: ["AI", "Psychology", "PatternAnalysis", "Unconscious"],
-    thumbnail: "/ai-psychology-analysis.jpg",
-    addedDate: "2024-01-20",
-    tab: "Blog by AI" as const,
-    type: "blog" as const,
-    isPremium: true,
-    content: `# AI-Analyzed Human Psychology Patterns
-
-Let's explore the hidden patterns of human psychology discovered by artificial intelligence through massive data analysis.
-
-## Key Findings
-
-1. **Cyclical Nature of Emotional Expression**: Human emotional expression follows a 7-day cycle pattern.
-2. **Time-based Decision Making Characteristics**: Most rational judgments are made at 10 AM and 3 PM.
-3. **Regularity of Social Interactions**: Conversation patterns based on intimacy levels are mathematically predictable.
-
-These patterns can provide practical help for personal growth and improving human relationships.`,
-  },
-  {
-    id: "blog2",
-    title: "Future of Education: The AI Tutor Era",
-    summary: "Educational innovation and its impact brought by personalized AI tutors",
-    keywords: ["AIEducation", "PersonalizedLearning", "FutureEducation", "Tutor"],
-    thumbnail: "/ai-tutor-education-future.jpg",
-    addedDate: "2024-01-18",
-    tab: "Blog by AI" as const,
-    type: "blog" as const,
-    isPremium: true,
-    content: `# Future of Education: The AI Tutor Era
-
-Let's analyze the revolutionary changes that personalized AI tutors will bring to the education field.
-
-## Advantages of AI Tutors
-
-- **24/7 Accessibility**: Learning support anytime
-- **Personalized Curriculum**: Customized to learner's level and pace
-- **Immediate Feedback**: Real-time error correction and improvement suggestions
-- **Infinite Patience**: No burden for repetitive learning
-
-## Expected Changes
-
-The education paradigm will shift from 'uniform education' to 'personalized education'.`,
-  },
-]
+interface ContentItem {
+  id: string;
+  title: string;
+  summary?: string;
+  description?: string;
+  keywords: string[];
+  youtubeId?: string;
+  youtubeUrl?: string;
+  thumbnail?: string;
+  addedDate: string;
+  tab: "Journals" | "Books" | "Fairy Tales" | "Blog by AI";
+  type: "video" | "blog";
+  isPremium?: boolean;
+  content?: string;
+  category?: string;
+  image?: string;
+}
 
 type TabType = "Journals" | "Books" | "Fairy Tales" | "Blog by AI"
 
 export default function HomePage() {
-  const [videos] = useState(sampleVideos)
+  const [videos, setVideos] = useState<ContentItem[]>([])
+  const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
-  const [selectedVideo, setSelectedVideo] = useState<(typeof sampleVideos)[0] | null>(null)
-  const [selectedBlog, setSelectedBlog] = useState<(typeof sampleVideos)[0] | null>(null)
+  const [selectedVideo, setSelectedVideo] = useState<ContentItem | null>(null)
+  const [selectedBlog, setSelectedBlog] = useState<ContentItem | null>(null)
   const [selectedKeyword, setSelectedKeyword] = useState<string | null>(null)
   const [selectedAlphabet, setSelectedAlphabet] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<TabType>("Journals")
   const [showPayment, setShowPayment] = useState(false)
   const { user } = useAuth()
+
+  // Supabase에서 콘텐츠 데이터 가져오기
+  const fetchContent = async () => {
+    try {
+      setLoading(true)
+
+      // 비디오 콘텐츠 가져오기
+      const { data: videoData, error: videoError } = await supabase
+        .from('video_content')
+        .select('*')
+        .order('created_at', { ascending: false })
+
+      // 블로그 콘텐츠 가져오기
+      const { data: blogData, error: blogError } = await supabase
+        .from('blog_content')
+        .select('*')
+        .order('created_at', { ascending: false })
+
+      if (videoError) {
+        console.error('비디오 데이터 로드 오류:', videoError)
+      }
+
+      if (blogError) {
+        console.error('블로그 데이터 로드 오류:', blogError)
+      }
+
+      const formattedVideos: ContentItem[] = (videoData || []).map(video => ({
+        id: video.id,
+        title: video.title,
+        summary: video.description,
+        keywords: video.keywords || [],
+        youtubeId: video.youtube_url ? extractYouTubeId(video.youtube_url) : undefined,
+        youtubeUrl: video.youtube_url,
+        thumbnail: video.youtube_url ? `https://img.youtube.com/vi/${extractYouTubeId(video.youtube_url)}/maxresdefault.jpg` : "/placeholder.svg",
+        addedDate: video.created_at,
+        tab: video.category as TabType,
+        type: "video" as const,
+        isPremium: video.is_premium || false,
+      }))
+
+      const formattedBlogs: ContentItem[] = (blogData || []).map(blog => ({
+        id: blog.id,
+        title: blog.title,
+        summary: blog.content?.substring(0, 150) + '...' || '',
+        keywords: blog.keywords || [],
+        thumbnail: blog.image || "/placeholder.svg",
+        addedDate: blog.created_at,
+        tab: "Blog by AI" as TabType,
+        type: "blog" as const,
+        isPremium: blog.is_premium || false,
+        content: blog.content,
+      }))
+
+      setVideos([...formattedVideos, ...formattedBlogs])
+    } catch (error) {
+      console.error('데이터 로드 중 오류:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // YouTube URL에서 Video ID 추출하는 함수
+  const extractYouTubeId = (url: string): string => {
+    const regExp = /^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(watch\?))\??v?=?([^#&?]*).*/
+    const match = url.match(regExp)
+    return (match && match[7].length === 11) ? match[7] : ''
+  }
+
+  useEffect(() => {
+    fetchContent()
+  }, [])
 
   const filteredVideos = useMemo(() => {
     return videos.filter((video) => {
@@ -394,10 +368,27 @@ export default function HomePage() {
               ))}
             </div>
 
-            {filteredVideos.length === 0 && (
+            {loading && (
               <div className="text-center py-12">
-                <p className="text-muted-foreground text-lg">No search results found.</p>
-                <p className="text-muted-foreground">Try searching with different keywords.</p>
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+                <p className="text-muted-foreground">Loading content...</p>
+              </div>
+            )}
+
+            {!loading && filteredVideos.length === 0 && (
+              <div className="text-center py-12">
+                <p className="text-muted-foreground text-lg">
+                  {videos.length === 0
+                    ? `No content available in ${activeTab} yet.`
+                    : "No search results found."
+                  }
+                </p>
+                <p className="text-muted-foreground">
+                  {videos.length === 0
+                    ? "Content will appear here once added by admin."
+                    : "Try searching with different keywords."
+                  }
+                </p>
               </div>
             )}
           </main>
@@ -453,7 +444,7 @@ function ContentCard({
   onPlay,
   onKeywordClick,
 }: {
-  video: (typeof sampleVideos)[0]
+  video: ContentItem
   onPlay: () => void
   onKeywordClick: (keyword: string) => void
 }) {
