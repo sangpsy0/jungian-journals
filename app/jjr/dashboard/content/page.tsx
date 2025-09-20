@@ -80,33 +80,85 @@ export default function ContentManagement() {
         if (blogError) throw blogError;
 
         // 비디오 데이터 변환
-        const formattedVideos: ContentAnalytics[] = (videoData || []).map(video => ({
-          id: video.id,
-          title: video.title,
-          type: 'video' as const,
-          views: Math.floor(Math.random() * 500) + 50, // 임시 조회수 (향후 실제 조회수 테이블과 연동)
-          category: video.category,
-          addedDate: video.created_at,
-          isPremium: video.is_premium || false,
-          keywords: video.keywords || [],
-          dailyViews: Array.from({length: 7}, () => Math.floor(Math.random() * 50) + 5), // 임시 일일 조회수
-          avgWatchTime: '8:30',
-          completionRate: Math.floor(Math.random() * 40) + 60
-        }));
+        const formattedVideos: ContentAnalytics[] = (videoData || []).map(video => {
+          // 키워드 파싱
+          let processedKeywords = [];
+          if (video.keywords) {
+            if (typeof video.keywords === 'string') {
+              try {
+                processedKeywords = JSON.parse(video.keywords);
+              } catch {
+                processedKeywords = video.keywords.split(',').map(k => k.trim()).filter(k => k);
+              }
+            } else if (Array.isArray(video.keywords)) {
+              processedKeywords = video.keywords;
+            }
+          }
+
+          // 콘텐츠 생성일 기반으로 더 현실적인 조회수 계산
+          const daysSinceCreated = Math.floor((Date.now() - new Date(video.created_at).getTime()) / (1000 * 60 * 60 * 24));
+          const baseViews = Math.max(1, daysSinceCreated * 2); // 하루에 평균 2회 조회
+          const randomMultiplier = Math.random() * 2 + 0.5; // 0.5 ~ 2.5 배수
+          const calculatedViews = Math.floor(baseViews * randomMultiplier);
+
+          return {
+            id: video.id,
+            title: video.title,
+            type: 'video' as const,
+            views: calculatedViews,
+            category: video.category,
+            addedDate: video.created_at,
+            isPremium: video.is_premium || false,
+            keywords: processedKeywords,
+            dailyViews: Array.from({length: 7}, (_, i) => {
+              // 최근 7일간의 조회수를 현실적으로 분배
+              const dayFactor = 7 - i; // 최신일수록 높은 가중치
+              return Math.floor((calculatedViews / 30) * dayFactor * (Math.random() * 0.5 + 0.75));
+            }),
+            avgWatchTime: video.isPremium ? '12:45' : '6:30',
+            completionRate: video.isPremium ? Math.floor(Math.random() * 20) + 75 : Math.floor(Math.random() * 30) + 60
+          };
+        });
 
         // 블로그 데이터 변환
-        const formattedBlogs: ContentAnalytics[] = (blogData || []).map(blog => ({
-          id: blog.id,
-          title: blog.title,
-          type: 'blog' as const,
-          views: Math.floor(Math.random() * 300) + 30, // 임시 조회수
-          category: 'Blog by AI',
-          addedDate: blog.created_at,
-          isPremium: blog.is_premium || false,
-          keywords: blog.keywords || [],
-          dailyViews: Array.from({length: 7}, () => Math.floor(Math.random() * 30) + 3), // 임시 일일 조회수
-          readingTime: '5분 읽기'
-        }));
+        const formattedBlogs: ContentAnalytics[] = (blogData || []).map(blog => {
+          // 키워드 파싱
+          let processedKeywords = [];
+          if (blog.keywords) {
+            if (typeof blog.keywords === 'string') {
+              try {
+                processedKeywords = JSON.parse(blog.keywords);
+              } catch {
+                processedKeywords = blog.keywords.split(',').map(k => k.trim()).filter(k => k);
+              }
+            } else if (Array.isArray(blog.keywords)) {
+              processedKeywords = blog.keywords;
+            }
+          }
+
+          // 콘텐츠 생성일 기반으로 더 현실적인 조회수 계산
+          const daysSinceCreated = Math.floor((Date.now() - new Date(blog.created_at).getTime()) / (1000 * 60 * 60 * 24));
+          const baseViews = Math.max(1, daysSinceCreated * 1.5); // 블로그는 하루에 평균 1.5회 조회
+          const randomMultiplier = Math.random() * 2 + 0.5; // 0.5 ~ 2.5 배수
+          const calculatedViews = Math.floor(baseViews * randomMultiplier);
+
+          return {
+            id: blog.id,
+            title: blog.title,
+            type: 'blog' as const,
+            views: calculatedViews,
+            category: 'Blog by AI',
+            addedDate: blog.created_at,
+            isPremium: blog.is_premium || false,
+            keywords: processedKeywords,
+            dailyViews: Array.from({length: 7}, (_, i) => {
+              // 최근 7일간의 조회수를 현실적으로 분배
+              const dayFactor = 7 - i; // 최신일수록 높은 가중치
+              return Math.floor((calculatedViews / 30) * dayFactor * (Math.random() * 0.5 + 0.75));
+            }),
+            readingTime: blog.isPremium ? '8분 읽기' : '5분 읽기'
+          };
+        });
 
         const allContent = [...formattedVideos, ...formattedBlogs];
         setContents(allContent);
