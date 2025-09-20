@@ -248,6 +248,44 @@ export default function CreateContent() {
     return videoId ? `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg` : null;
   };
 
+  // Supabase Storage에 이미지 업로드하는 함수
+  const uploadImage = async (file: File): Promise<string | null> => {
+    try {
+      const supabaseClient = createBrowserClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      );
+
+      // 파일명 생성 (timestamp + 원본 파일명)
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+      const filePath = `blog-images/${fileName}`;
+
+      // Storage에 업로드
+      const { data, error } = await supabaseClient.storage
+        .from('blog-images')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false
+        });
+
+      if (error) {
+        console.error('이미지 업로드 오류:', error);
+        throw error;
+      }
+
+      // 업로드된 이미지의 공개 URL 가져오기
+      const { data: { publicUrl } } = supabaseClient.storage
+        .from('blog-images')
+        .getPublicUrl(filePath);
+
+      return publicUrl;
+    } catch (error) {
+      console.error('이미지 업로드 실패:', error);
+      return null;
+    }
+  };
+
   const handleSave = async () => {
     try {
       const supabaseClient = createBrowserClient(
@@ -324,15 +362,20 @@ export default function CreateContent() {
           };
 
           // 이미지 처리
-          if (blogContent.imageUrl && blogContent.imageUrl !== '') {
-            // 외부 URL이 입력된 경우 (수정됨)
+          if (blogContent.image) {
+            // 새로운 파일이 업로드된 경우
+            console.log('이미지 파일 업로드 시작...');
+            const uploadedUrl = await uploadImage(blogContent.image);
+            if (uploadedUrl) {
+              updateData.image = uploadedUrl;
+              console.log('이미지 업로드 성공:', uploadedUrl);
+            } else {
+              console.log('이미지 업로드 실패 - 기존 이미지 유지');
+            }
+          } else if (blogContent.imageUrl && blogContent.imageUrl !== '' && blogContent.imageUrl !== blogContent.imagePreview) {
+            // 외부 URL이 새로 입력된 경우
             updateData.image = blogContent.imageUrl;
-            console.log('이미지 URL 업데이트:', blogContent.imageUrl);
-          } else if (blogContent.image) {
-            // 새로운 파일이 업로드된 경우 - 기본 이미지 사용
-            alert('파일 업로드 기능은 준비 중입니다. 외부 이미지 URL을 입력해주세요.');
-            // 파일이 업로드되었지만 URL이 없으면 기존 이미지 유지
-            console.log('파일 업로드 - 기존 이미지 유지');
+            console.log('외부 이미지 URL 사용:', blogContent.imageUrl);
           } else {
             // 변경사항 없으면 기존 이미지 유지
             console.log('기존 이미지 유지 - image 필드 업데이트하지 않음');
@@ -357,14 +400,22 @@ export default function CreateContent() {
           };
 
           // 이미지 처리
-          if (blogContent.imageUrl && blogContent.imageUrl !== '') {
+          if (blogContent.image) {
+            // 파일이 업로드된 경우
+            console.log('이미지 파일 업로드 시작...');
+            const uploadedUrl = await uploadImage(blogContent.image);
+            if (uploadedUrl) {
+              insertData.image = uploadedUrl;
+              console.log('이미지 업로드 성공:', uploadedUrl);
+            } else {
+              // 업로드 실패 시 기본 이미지 사용
+              insertData.image = 'https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=800&auto=format&fit=crop';
+              console.log('업로드 실패 - 기본 이미지 사용');
+            }
+          } else if (blogContent.imageUrl && blogContent.imageUrl !== '') {
             // 외부 URL이 입력된 경우
             insertData.image = blogContent.imageUrl;
-            console.log('이미지 URL 사용:', blogContent.imageUrl);
-          } else if (blogContent.image) {
-            // 파일이 업로드되었지만 URL이 없는 경우
-            alert('파일 업로드 기능은 준비 중입니다. 외부 이미지 URL을 입력해주세요.');
-            console.log('파일 업로드 - 이미지 없이 저장');
+            console.log('외부 이미지 URL 사용:', blogContent.imageUrl);
           } else {
             // 이미지가 없는 경우 기본 이미지 사용
             insertData.image = 'https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=800&auto=format&fit=crop';
@@ -562,34 +613,46 @@ export default function CreateContent() {
 
                     <div>
                       <label className="text-sm font-medium mb-2 block">표지 이미지</label>
-                      <div className="space-y-2">
-                        <div className="flex items-center space-x-4">
-                          <div className="flex-1">
-                            <input
-                              type="file"
-                              accept="image/*"
-                              onChange={handleImageUpload}
-                              className="w-full p-2 border border-input rounded-md"
-                            />
-                          </div>
-                          {blogContent.imagePreview && (
-                            <div className="w-20 h-20 border rounded-lg overflow-hidden">
-                              <img
-                                src={blogContent.imagePreview}
-                                alt="미리보기"
-                                className="w-full h-full object-cover"
+                      <div className="space-y-3">
+                        <div className="p-3 border rounded-lg space-y-2">
+                          <p className="text-sm font-medium">파일 업로드</p>
+                          <div className="flex items-center space-x-4">
+                            <div className="flex-1">
+                              <input
+                                type="file"
+                                accept="image/*"
+                                onChange={handleImageUpload}
+                                className="w-full p-2 border border-input rounded-md"
                               />
+                              {blogContent.image && (
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  선택된 파일: {blogContent.image.name}
+                                </p>
+                              )}
                             </div>
-                          )}
+                            {blogContent.imagePreview && (
+                              <div className="w-20 h-20 border rounded-lg overflow-hidden">
+                                <img
+                                  src={blogContent.imagePreview}
+                                  alt="미리보기"
+                                  className="w-full h-full object-cover"
+                                />
+                              </div>
+                            )}
+                          </div>
                         </div>
-                        <div className="flex items-center space-x-2">
-                          <span className="text-sm text-muted-foreground">또는 URL 입력:</span>
+
+                        <div className="p-3 border rounded-lg space-y-2">
+                          <p className="text-sm font-medium">또는 외부 URL 입력</p>
                           <Input
                             value={blogContent.imageUrl || ''}
                             onChange={(e) => handleImageUrlChange(e.target.value)}
                             placeholder="https://example.com/image.jpg"
-                            className="flex-1"
+                            className="w-full"
                           />
+                          <p className="text-xs text-muted-foreground">
+                            외부 이미지 URL을 입력하면 파일 업로드보다 우선 적용됩니다.
+                          </p>
                         </div>
                       </div>
                     </div>
