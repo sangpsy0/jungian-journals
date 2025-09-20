@@ -593,9 +593,19 @@ function ContentCard({
             <Calendar className="h-3 w-3 mr-1" />
             {new Date(video.addedDate).toLocaleDateString("en-US")}
           </div>
-          {isPremium && (
-            <div className="text-amber-500 font-medium">멤버십 전용</div>
-          )}
+          <div>
+            {isPremium ? (
+              <Badge variant="secondary" className="bg-amber-100 text-amber-800 text-xs">
+                <Star className="h-2 w-2 mr-1" />
+                유료 회원용
+              </Badge>
+            ) : (
+              <Badge variant="secondary" className="bg-green-100 text-green-800 text-xs">
+                <span className="inline-block w-2 h-2 bg-green-500 rounded-full mr-1"></span>
+                무료
+              </Badge>
+            )}
+          </div>
         </div>
       </CardContent>
     </Card>

@@ -495,20 +495,44 @@ export default function CreateContent() {
                       />
                     </div>
 
-                    <div className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        id="video-premium"
-                        checked={videoContent.isPremium}
-                        onChange={(e) => setVideoContent(prev => ({
-                          ...prev,
-                          isPremium: e.target.checked
-                        }))}
-                        className="rounded"
-                      />
-                      <label htmlFor="video-premium" className="text-sm font-medium">
-                        프리미엄 콘텐츠
-                      </label>
+                    <div>
+                      <label className="text-sm font-medium mb-2 block">회원 유형</label>
+                      <div className="space-y-2">
+                        <div className="flex items-center space-x-2">
+                          <input
+                            type="radio"
+                            id="video-free"
+                            name="video-membership"
+                            checked={!videoContent.isPremium}
+                            onChange={() => setVideoContent(prev => ({
+                              ...prev,
+                              isPremium: false
+                            }))}
+                            className="rounded"
+                          />
+                          <label htmlFor="video-free" className="text-sm font-medium flex items-center space-x-2">
+                            <span className="inline-block w-2 h-2 bg-green-500 rounded-full"></span>
+                            <span>무료 회원용 (모든 사용자가 시청 가능)</span>
+                          </label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <input
+                            type="radio"
+                            id="video-premium"
+                            name="video-membership"
+                            checked={videoContent.isPremium}
+                            onChange={() => setVideoContent(prev => ({
+                              ...prev,
+                              isPremium: true
+                            }))}
+                            className="rounded"
+                          />
+                          <label htmlFor="video-premium" className="text-sm font-medium flex items-center space-x-2">
+                            <span className="inline-block w-2 h-2 bg-amber-500 rounded-full"></span>
+                            <span>유료 회원용 (프리미엄 구독자만 시청 가능)</span>
+                          </label>
+                        </div>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
@@ -559,20 +583,44 @@ export default function CreateContent() {
                       </div>
                     </div>
 
-                    <div className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        id="blog-premium"
-                        checked={blogContent.isPremium}
-                        onChange={(e) => setBlogContent(prev => ({
-                          ...prev,
-                          isPremium: e.target.checked
-                        }))}
-                        className="rounded"
-                      />
-                      <label htmlFor="blog-premium" className="text-sm font-medium">
-                        프리미엄 콘텐츠
-                      </label>
+                    <div>
+                      <label className="text-sm font-medium mb-2 block">회원 유형</label>
+                      <div className="space-y-2">
+                        <div className="flex items-center space-x-2">
+                          <input
+                            type="radio"
+                            id="blog-free"
+                            name="blog-membership"
+                            checked={!blogContent.isPremium}
+                            onChange={() => setBlogContent(prev => ({
+                              ...prev,
+                              isPremium: false
+                            }))}
+                            className="rounded"
+                          />
+                          <label htmlFor="blog-free" className="text-sm font-medium flex items-center space-x-2">
+                            <span className="inline-block w-2 h-2 bg-green-500 rounded-full"></span>
+                            <span>무료 회원용 (모든 사용자가 읽을 수 있음)</span>
+                          </label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <input
+                            type="radio"
+                            id="blog-premium"
+                            name="blog-membership"
+                            checked={blogContent.isPremium}
+                            onChange={() => setBlogContent(prev => ({
+                              ...prev,
+                              isPremium: true
+                            }))}
+                            className="rounded"
+                          />
+                          <label htmlFor="blog-premium" className="text-sm font-medium flex items-center space-x-2">
+                            <span className="inline-block w-2 h-2 bg-amber-500 rounded-full"></span>
+                            <span>유료 회원용 (프리미엄 구독자만 읽을 수 있음)</span>
+                          </label>
+                        </div>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
