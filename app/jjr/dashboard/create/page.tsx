@@ -299,26 +299,30 @@ export default function CreateContent() {
           return;
         }
 
-        // 이미지가 있다면 업로드 처리 (현재는 단순히 파일 경로 저장)
-        let imageUrl = null;
-        if (blogContent.image) {
-          // 실제 구현에서는 이미지를 Supabase Storage에 업로드해야 함
-          imageUrl = blogContent.imagePreview; // 임시로 미리보기 URL 사용
-        }
-
         console.log('저장할 블로그 키워드:', blogContent.keywords);
 
         if (isEditing && editId) {
           // 편집 모드: 기존 콘텐츠 업데이트
+          const updateData: any = {
+            title: blogContent.title,
+            content: blogContent.content,
+            keywords: JSON.stringify(blogContent.keywords),
+            is_premium: blogContent.isPremium,
+          };
+
+          // 새로운 이미지가 업로드된 경우에만 image 필드 업데이트
+          // blogContent.image가 있으면 새 이미지, 없으면 기존 이미지 유지
+          if (blogContent.image) {
+            // 실제 구현에서는 이미지를 Supabase Storage에 업로드해야 함
+            updateData.image = blogContent.imagePreview;
+            console.log('새 이미지 업로드:', blogContent.imagePreview);
+          } else {
+            console.log('기존 이미지 유지 - image 필드 업데이트하지 않음');
+          }
+
           const { data, error } = await supabaseClient
             .from('blog_content')
-            .update({
-              title: blogContent.title,
-              content: blogContent.content,
-              keywords: JSON.stringify(blogContent.keywords),
-              is_premium: blogContent.isPremium,
-              image: imageUrl,
-            })
+            .update(updateData)
             .eq('id', editId);
 
           if (error) throw error;
@@ -326,16 +330,23 @@ export default function CreateContent() {
           alert('블로그 콘텐츠가 성공적으로 수정되었습니다!');
         } else {
           // 신규 생성 모드
+          const insertData: any = {
+            title: blogContent.title,
+            content: blogContent.content,
+            keywords: JSON.stringify(blogContent.keywords),
+            is_premium: blogContent.isPremium,
+            created_at: new Date().toISOString()
+          };
+
+          // 이미지가 있는 경우에만 image 필드 추가
+          if (blogContent.image && blogContent.imagePreview) {
+            insertData.image = blogContent.imagePreview;
+            console.log('새 블로그 이미지 추가:', blogContent.imagePreview);
+          }
+
           const { data, error } = await supabaseClient
             .from('blog_content')
-            .insert([{
-              title: blogContent.title,
-              content: blogContent.content,
-              keywords: JSON.stringify(blogContent.keywords),
-              is_premium: blogContent.isPremium,
-              image: imageUrl,
-              created_at: new Date().toISOString()
-            }]);
+            .insert([insertData]);
 
           if (error) throw error;
           console.log('블로그 콘텐츠 저장 성공:', data);
