@@ -549,10 +549,12 @@ function ContentCard({
           )}
         </div>
         {isBlog && (
-          <Badge className="absolute top-2 right-2 bg-gradient-to-r from-blue-500 to-indigo-600">AI Blog</Badge>
-        )}
-        {isPremium && (
-          <Badge className="absolute top-2 right-2 bg-amber-500 text-white">프리미엄</Badge>
+          <>
+            <Badge className="absolute top-2 right-2 bg-gradient-to-r from-blue-500 to-indigo-600">AI Blog</Badge>
+            {isPremium && (
+              <Badge className="absolute top-2 left-2 bg-amber-500 text-white">프리미엄</Badge>
+            )}
+          </>
         )}
       </div>
       <CardHeader className="pb-2" onClick={onPlay}>
@@ -593,19 +595,21 @@ function ContentCard({
             <Calendar className="h-3 w-3 mr-1" />
             {new Date(video.addedDate).toLocaleDateString("en-US")}
           </div>
-          <div>
-            {isPremium ? (
-              <Badge variant="secondary" className="bg-amber-100 text-amber-800 text-xs">
-                <Star className="h-2 w-2 mr-1" />
-                유료 회원용
-              </Badge>
-            ) : (
-              <Badge variant="secondary" className="bg-green-100 text-green-800 text-xs">
-                <span className="inline-block w-2 h-2 bg-green-500 rounded-full mr-1"></span>
-                무료
-              </Badge>
-            )}
-          </div>
+          {isBlog && (
+            <div>
+              {isPremium ? (
+                <Badge variant="secondary" className="bg-amber-100 text-amber-800 text-xs">
+                  <Star className="h-2 w-2 mr-1" />
+                  유료 회원용
+                </Badge>
+              ) : (
+                <Badge variant="secondary" className="bg-green-100 text-green-800 text-xs">
+                  <span className="inline-block w-2 h-2 bg-green-500 rounded-full mr-1"></span>
+                  무료
+                </Badge>
+              )}
+            </div>
+          )}
         </div>
       </CardContent>
     </Card>

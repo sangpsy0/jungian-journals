@@ -447,19 +447,21 @@ export default function ContentManagement() {
 
                       <div className="flex-1 min-w-0">
                         <h3 className="text-sm font-semibold leading-5 break-words">{content.title}</h3>
-                        <div className="mt-1">
-                          {content.isPremium ? (
-                            <Badge variant="secondary" className="bg-amber-100 text-amber-800 text-xs">
-                              <Star className="h-2 w-2 mr-1" />
-                              유료 회원용
-                            </Badge>
-                          ) : (
-                            <Badge variant="secondary" className="bg-green-100 text-green-800 text-xs">
-                              <span className="inline-block w-2 h-2 bg-green-500 rounded-full mr-1"></span>
-                              무료 회원용
-                            </Badge>
-                          )}
-                        </div>
+                        {content.type === 'blog' && (
+                          <div className="mt-1">
+                            {content.isPremium ? (
+                              <Badge variant="secondary" className="bg-amber-100 text-amber-800 text-xs">
+                                <Star className="h-2 w-2 mr-1" />
+                                유료 회원용
+                              </Badge>
+                            ) : (
+                              <Badge variant="secondary" className="bg-green-100 text-green-800 text-xs">
+                                <span className="inline-block w-2 h-2 bg-green-500 rounded-full mr-1"></span>
+                                무료 회원용
+                              </Badge>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
 

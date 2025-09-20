@@ -267,7 +267,7 @@ export default function CreateContent() {
               youtube_url: videoContent.youtubeUrl,
               category: videoContent.category,
               keywords: JSON.stringify(videoContent.keywords),
-              is_premium: videoContent.isPremium,
+              is_premium: false, // 비디오는 항상 무료
             })
             .eq('id', editId);
 
@@ -284,7 +284,7 @@ export default function CreateContent() {
               youtube_url: videoContent.youtubeUrl,
               category: videoContent.category,
               keywords: JSON.stringify(videoContent.keywords),
-              is_premium: videoContent.isPremium,
+              is_premium: false, // 비디오는 항상 무료
               created_at: new Date().toISOString()
             }]);
 
@@ -495,45 +495,7 @@ export default function CreateContent() {
                       />
                     </div>
 
-                    <div>
-                      <label className="text-sm font-medium mb-2 block">회원 유형</label>
-                      <div className="space-y-2">
-                        <div className="flex items-center space-x-2">
-                          <input
-                            type="radio"
-                            id="video-free"
-                            name="video-membership"
-                            checked={!videoContent.isPremium}
-                            onChange={() => setVideoContent(prev => ({
-                              ...prev,
-                              isPremium: false
-                            }))}
-                            className="rounded"
-                          />
-                          <label htmlFor="video-free" className="text-sm font-medium flex items-center space-x-2">
-                            <span className="inline-block w-2 h-2 bg-green-500 rounded-full"></span>
-                            <span>무료 회원용 (모든 사용자가 시청 가능)</span>
-                          </label>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <input
-                            type="radio"
-                            id="video-premium"
-                            name="video-membership"
-                            checked={videoContent.isPremium}
-                            onChange={() => setVideoContent(prev => ({
-                              ...prev,
-                              isPremium: true
-                            }))}
-                            className="rounded"
-                          />
-                          <label htmlFor="video-premium" className="text-sm font-medium flex items-center space-x-2">
-                            <span className="inline-block w-2 h-2 bg-amber-500 rounded-full"></span>
-                            <span>유료 회원용 (프리미엄 구독자만 시청 가능)</span>
-                          </label>
-                        </div>
-                      </div>
-                    </div>
+                    {/* 비디오는 항상 무료 - isPremium을 false로 고정 */}
                   </CardContent>
                 </Card>
               </>
