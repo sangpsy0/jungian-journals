@@ -396,6 +396,7 @@ export default function ContentManagement() {
                       <Trash2 className="h-3 w-3" />
                     </Button>
                   </div>
+                  </div>
 
                   {/* 카테고리, 날짜, 키워드 정보 */}
                   <div className="space-y-2">
