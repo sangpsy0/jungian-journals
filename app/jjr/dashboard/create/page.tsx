@@ -20,6 +20,7 @@ import {
   Image as ImageIcon
 } from 'lucide-react';
 import { useAdmin } from '@/components/admin-provider';
+import { supabase } from '@/lib/supabase';
 
 interface VideoContent {
   category: 'Journals' | 'Books' | 'Fairy Tales';
@@ -128,12 +129,62 @@ export default function CreateContent() {
   const handleSave = async () => {
     try {
       if (contentType === 'video') {
-        // 비디오 콘텐츠 저장 로직
-        console.log('비디오 콘텐츠 저장:', videoContent);
+        // 필수 필드 검증
+        if (!videoContent.title || !videoContent.youtubeUrl) {
+          alert('제목과 YouTube URL은 필수입니다.');
+          return;
+        }
+
+        // 비디오 콘텐츠 Supabase에 저장
+        const { data, error } = await supabase
+          .from('video_content')
+          .insert([{
+            title: videoContent.title,
+            description: videoContent.description,
+            youtube_url: videoContent.youtubeUrl,
+            category: videoContent.category,
+            keywords: videoContent.keywords,
+            is_premium: videoContent.isPremium,
+            created_at: new Date().toISOString()
+          }]);
+
+        if (error) {
+          throw error;
+        }
+
+        console.log('비디오 콘텐츠 저장 성공:', data);
         alert('비디오 콘텐츠가 저장되었습니다.');
       } else {
-        // 블로그 콘텐츠 저장 로직
-        console.log('블로그 콘텐츠 저장:', blogContent);
+        // 필수 필드 검증
+        if (!blogContent.title || !blogContent.content) {
+          alert('제목과 내용은 필수입니다.');
+          return;
+        }
+
+        // 이미지가 있다면 업로드 처리 (현재는 단순히 파일 경로 저장)
+        let imageUrl = null;
+        if (blogContent.image) {
+          // 실제 구현에서는 이미지를 Supabase Storage에 업로드해야 함
+          imageUrl = blogContent.imagePreview; // 임시로 미리보기 URL 사용
+        }
+
+        // 블로그 콘텐츠 Supabase에 저장
+        const { data, error } = await supabase
+          .from('blog_content')
+          .insert([{
+            title: blogContent.title,
+            content: blogContent.content,
+            keywords: blogContent.keywords,
+            is_premium: blogContent.isPremium,
+            image: imageUrl,
+            created_at: new Date().toISOString()
+          }]);
+
+        if (error) {
+          throw error;
+        }
+
+        console.log('블로그 콘텐츠 저장 성공:', data);
         alert('블로그 콘텐츠가 저장되었습니다.');
       }
 
@@ -141,7 +192,7 @@ export default function CreateContent() {
       router.push('/jjr/dashboard/content');
     } catch (error) {
       console.error('저장 오류:', error);
-      alert('저장 중 오류가 발생했습니다.');
+      alert('저장 중 오류가 발생했습니다: ' + error.message);
     }
   };
 
