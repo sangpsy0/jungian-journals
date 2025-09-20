@@ -217,6 +217,8 @@ export default function ContentManagement() {
   const handleDelete = async (contentId: string, title: string) => {
     if (confirm(`"${title}" 콘텐츠를 삭제하시겠습니까?`)) {
       try {
+        console.log('삭제 시작 - ID:', contentId, 'Title:', title);
+
         const supabase = createBrowserClient(
           process.env.NEXT_PUBLIC_SUPABASE_URL!,
           process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -224,28 +226,53 @@ export default function ContentManagement() {
 
         // 해당 콘텐츠가 비디오인지 블로그인지 확인
         const content = contents.find(c => c.id === contentId);
-        if (!content) return;
+        if (!content) {
+          console.error('콘텐츠를 찾을 수 없음:', contentId);
+          return;
+        }
+
+        console.log('삭제할 콘텐츠 타입:', content.type);
 
         if (content.type === 'video') {
-          const { error } = await supabase
+          console.log('비디오 콘텐츠 삭제 시도...');
+          const { data, error } = await supabase
             .from('video_content')
             .delete()
-            .eq('id', contentId);
-          if (error) throw error;
+            .eq('id', contentId)
+            .select(); // 삭제된 데이터 반환
+
+          if (error) {
+            console.error('비디오 삭제 에러:', error);
+            throw error;
+          }
+          console.log('비디오 삭제 성공:', data);
         } else {
-          const { error } = await supabase
+          console.log('블로그 콘텐츠 삭제 시도...');
+          const { data, error } = await supabase
             .from('blog_content')
             .delete()
-            .eq('id', contentId);
-          if (error) throw error;
+            .eq('id', contentId)
+            .select(); // 삭제된 데이터 반환
+
+          if (error) {
+            console.error('블로그 삭제 에러:', error);
+            throw error;
+          }
+          console.log('블로그 삭제 성공:', data);
         }
 
         // UI에서 제거
         setContents(prev => prev.filter(content => content.id !== contentId));
         alert('콘텐츠가 삭제되었습니다.');
-      } catch (error) {
-        console.error('삭제 중 오류:', error);
-        alert('삭제 중 오류가 발생했습니다: ' + error.message);
+      } catch (error: any) {
+        console.error('삭제 중 오류 상세:', error);
+
+        // RLS 정책 오류인지 확인
+        if (error.message?.includes('row-level security')) {
+          alert('권한 오류: 콘텐츠 삭제 권한이 없습니다.\n관리자에게 문의하세요.');
+        } else {
+          alert('삭제 중 오류가 발생했습니다:\n' + (error.message || '알 수 없는 오류'));
+        }
       }
     }
   };
