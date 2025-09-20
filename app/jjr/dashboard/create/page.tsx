@@ -176,21 +176,30 @@ export default function CreateContent() {
 
   const addKeyword = () => {
     if (keywordInput.trim()) {
-      const keyword = keywordInput.trim();
+      // 쉼표로 구분하여 여러 키워드 추가
+      const newKeywords = keywordInput
+        .split(',')
+        .map(k => k.trim())
+        .filter(k => k.length > 0);
+
       if (contentType === 'video') {
-        if (!videoContent.keywords.includes(keyword)) {
-          setVideoContent(prev => ({
+        setVideoContent(prev => {
+          const existingKeywords = prev.keywords || [];
+          const uniqueKeywords = [...new Set([...existingKeywords, ...newKeywords])];
+          return {
             ...prev,
-            keywords: [...prev.keywords, keyword]
-          }));
-        }
+            keywords: uniqueKeywords
+          };
+        });
       } else {
-        if (!blogContent.keywords.includes(keyword)) {
-          setBlogContent(prev => ({
+        setBlogContent(prev => {
+          const existingKeywords = prev.keywords || [];
+          const uniqueKeywords = [...new Set([...existingKeywords, ...newKeywords])];
+          return {
             ...prev,
-            keywords: [...prev.keywords, keyword]
-          }));
-        }
+            keywords: uniqueKeywords
+          };
+        });
       }
       setKeywordInput('');
     }
@@ -598,7 +607,7 @@ export default function CreateContent() {
                   <Input
                     value={keywordInput}
                     onChange={(e) => setKeywordInput(e.target.value)}
-                    placeholder="키워드 입력..."
+                    placeholder="키워드 입력 (쉼표로 구분하여 여러 개 입력 가능)"
                     onKeyPress={(e) => {
                       if (e.key === 'Enter') {
                         e.preventDefault();
