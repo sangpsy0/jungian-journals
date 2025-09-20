@@ -1,15 +1,13 @@
 "use client"
 
 import { useState, useMemo, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { Search, Play, Tag, Calendar, Star } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { VideoModal } from "@/components/video-modal"
-import { BlogModal } from "@/components/blog-modal"
 import GoogleLoginButton from "@/components/google-login-button"
-import { PremiumPayment } from "@/components/premium-payment"
 import { useAuth } from "@/components/auth-provider"
 import { supabase } from "@/lib/supabase"
 
@@ -34,15 +32,13 @@ interface ContentItem {
 type TabType = "Journals" | "Books" | "Fairy Tales" | "Blog by AI"
 
 export default function HomePage() {
+  const router = useRouter()
   const [videos, setVideos] = useState<ContentItem[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
-  const [selectedVideo, setSelectedVideo] = useState<ContentItem | null>(null)
-  const [selectedBlog, setSelectedBlog] = useState<ContentItem | null>(null)
   const [selectedKeyword, setSelectedKeyword] = useState<string | null>(null)
   const [selectedAlphabet, setSelectedAlphabet] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<TabType>("Journals")
-  const [showPayment, setShowPayment] = useState(false)
   const { user } = useAuth()
 
   // Supabase에서 콘텐츠 데이터 가져오기
@@ -260,21 +256,6 @@ export default function HomePage() {
     setSearchTerm("")
   }
 
-  const handleUpgradeToPremium = () => {
-    if (!user) {
-      alert('로그인이 필요합니다.');
-      return;
-    }
-    setShowPayment(true);
-  }
-
-  const handlePaymentSuccess = () => {
-    setShowPayment(false);
-    // 페이지 새로고침으로 사용자 상태 업데이트
-    window.location.reload();
-  }
-
-  const canReadBlogContent = user?.user_metadata?.isPremium || false
 
   return (
     <div className="min-h-screen bg-background">
@@ -438,9 +419,9 @@ export default function HomePage() {
                   video={video}
                   onPlay={() => {
                     if (video.type === "blog") {
-                      setSelectedBlog(video)
+                      router.push(`/content/blog/${video.id}`)
                     } else {
-                      setSelectedVideo(video)
+                      router.push(`/content/video/${video.id}`)
                     }
                   }}
                   onKeywordClick={handleKeywordClick}
@@ -474,28 +455,6 @@ export default function HomePage() {
           </main>
         </div>
       </div>
-
-      {selectedVideo && (
-        <VideoModal video={selectedVideo} isOpen={!!selectedVideo} onClose={() => setSelectedVideo(null)} />
-      )}
-
-      {selectedBlog && (
-        <BlogModal
-          blog={selectedBlog}
-          isOpen={!!selectedBlog}
-          onClose={() => setSelectedBlog(null)}
-          canReadContent={canReadBlogContent}
-          onUpgrade={handleUpgradeToPremium}
-        />
-      )}
-
-      {showPayment && (
-        <PremiumPayment
-          isOpen={showPayment}
-          onClose={() => setShowPayment(false)}
-          onSuccess={handlePaymentSuccess}
-        />
-      )}
 
       {/* Hidden Admin Link */}
       <footer className="bg-muted/30 border-t">

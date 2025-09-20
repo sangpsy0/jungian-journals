@@ -21,7 +21,8 @@ import {
   Plus,
   Edit,
   Trash2,
-  MoreVertical
+  MoreVertical,
+  ExternalLink
 } from 'lucide-react';
 import { useAdmin } from '@/components/admin-provider';
 import { createBrowserClient } from '@supabase/ssr';
@@ -465,8 +466,22 @@ export default function ContentManagement() {
                       </div>
                     </div>
 
-                    {/* 편집/삭제 버튼 - 항상 오른쪽 상단에 고정 */}
+                    {/* 보기/편집/삭제 버튼 - 항상 오른쪽 상단에 고정 */}
                     <div className="flex items-start space-x-1 flex-shrink-0">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          if (content.type === 'blog') {
+                            router.push(`/content/blog/${content.id}`)
+                          } else {
+                            router.push(`/content/video/${content.id}`)
+                          }
+                        }}
+                        className="h-6 w-6 p-0"
+                      >
+                        <ExternalLink className="h-3 w-3" />
+                      </Button>
                       <Button
                         variant="ghost"
                         size="sm"
