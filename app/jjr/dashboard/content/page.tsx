@@ -24,6 +24,7 @@ import {
   MoreVertical
 } from 'lucide-react';
 import { useAdmin } from '@/components/admin-provider';
+import { createBrowserClient } from '@supabase/ssr';
 
 interface ContentAnalytics {
   id: string;
@@ -56,75 +57,70 @@ export default function ContentManagement() {
   }, [isAdminLoggedIn, isLoading, router]);
 
   useEffect(() => {
-    // 실제 콘텐츠 데이터 (샘플)
-    const contentData: ContentAnalytics[] = [
-      {
-        id: '1',
-        title: 'Complete Next.js 14 Guide',
-        type: 'video',
-        views: 245,
-        category: 'Journals',
-        addedDate: '2024-01-15',
-        isPremium: false,
-        keywords: ['NextJS', 'React', 'WebDev'],
-        dailyViews: [12, 18, 25, 32, 28, 45, 38],
-        avgWatchTime: '8:45',
-        completionRate: 72
-      },
-      {
-        id: '2',
-        title: 'Understanding Jung\'s Collective Unconscious',
-        type: 'blog',
-        views: 189,
-        category: 'Blog by AI',
-        addedDate: '2024-01-18',
-        isPremium: true,
-        keywords: ['Psychology', 'Jung', 'Unconscious'],
-        dailyViews: [8, 15, 22, 18, 24, 31, 29],
-        readingTime: '6분 읽기'
-      },
-      {
-        id: '3',
-        title: 'React Hooks Deep Dive',
-        type: 'video',
-        views: 156,
-        category: 'Journals',
-        addedDate: '2024-01-12',
-        isPremium: false,
-        keywords: ['React', 'Hooks', 'JavaScript'],
-        dailyViews: [5, 12, 19, 22, 18, 26, 24],
-        avgWatchTime: '12:30',
-        completionRate: 85
-      },
-      {
-        id: '4',
-        title: 'The Art of Dream Analysis',
-        type: 'blog',
-        views: 98,
-        category: 'Blog by AI',
-        addedDate: '2024-01-20',
-        isPremium: true,
-        keywords: ['Dreams', 'Analysis', 'Psychology'],
-        dailyViews: [3, 8, 12, 15, 18, 21, 21],
-        readingTime: '4분 읽기'
-      },
-      {
-        id: '5',
-        title: 'TypeScript Best Practices',
-        type: 'video',
-        views: 67,
-        category: 'Journals',
-        addedDate: '2024-01-22',
-        isPremium: false,
-        keywords: ['TypeScript', 'Best Practices', 'Programming'],
-        dailyViews: [2, 5, 8, 12, 15, 12, 13],
-        avgWatchTime: '15:20',
-        completionRate: 78
-      }
-    ];
+    const fetchContentData = async () => {
+      try {
+        const supabase = createBrowserClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL!,
+          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+        );
 
-    setContents(contentData);
-    setTotalViews(contentData.reduce((sum, content) => sum + content.views, 0));
+        // 비디오 콘텐츠 가져오기
+        const { data: videoData, error: videoError } = await supabase
+          .from('video_content')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        // 블로그 콘텐츠 가져오기
+        const { data: blogData, error: blogError } = await supabase
+          .from('blog_content')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (videoError) throw videoError;
+        if (blogError) throw blogError;
+
+        // 비디오 데이터 변환
+        const formattedVideos: ContentAnalytics[] = (videoData || []).map(video => ({
+          id: video.id,
+          title: video.title,
+          type: 'video' as const,
+          views: Math.floor(Math.random() * 500) + 50, // 임시 조회수 (향후 실제 조회수 테이블과 연동)
+          category: video.category,
+          addedDate: video.created_at,
+          isPremium: video.is_premium || false,
+          keywords: video.keywords || [],
+          dailyViews: Array.from({length: 7}, () => Math.floor(Math.random() * 50) + 5), // 임시 일일 조회수
+          avgWatchTime: '8:30',
+          completionRate: Math.floor(Math.random() * 40) + 60
+        }));
+
+        // 블로그 데이터 변환
+        const formattedBlogs: ContentAnalytics[] = (blogData || []).map(blog => ({
+          id: blog.id,
+          title: blog.title,
+          type: 'blog' as const,
+          views: Math.floor(Math.random() * 300) + 30, // 임시 조회수
+          category: 'Blog by AI',
+          addedDate: blog.created_at,
+          isPremium: blog.is_premium || false,
+          keywords: blog.keywords || [],
+          dailyViews: Array.from({length: 7}, () => Math.floor(Math.random() * 30) + 3), // 임시 일일 조회수
+          readingTime: '5분 읽기'
+        }));
+
+        const allContent = [...formattedVideos, ...formattedBlogs];
+        setContents(allContent);
+        setTotalViews(allContent.reduce((sum, content) => sum + content.views, 0));
+
+      } catch (error) {
+        console.error('콘텐츠 데이터 로드 중 오류:', error);
+        // 오류 발생 시 빈 배열로 설정
+        setContents([]);
+        setTotalViews(0);
+      }
+    };
+
+    fetchContentData();
   }, []);
 
   const filteredContents = contents.filter(content => {
@@ -166,11 +162,39 @@ export default function ContentManagement() {
     router.push(`/jjr/dashboard/create?edit=${contentId}`);
   };
 
-  const handleDelete = (contentId: string, title: string) => {
+  const handleDelete = async (contentId: string, title: string) => {
     if (confirm(`"${title}" 콘텐츠를 삭제하시겠습니까?`)) {
-      // 실제 환경에서는 API 호출로 삭제
-      setContents(prev => prev.filter(content => content.id !== contentId));
-      alert('콘텐츠가 삭제되었습니다.');
+      try {
+        const supabase = createBrowserClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL!,
+          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+        );
+
+        // 해당 콘텐츠가 비디오인지 블로그인지 확인
+        const content = contents.find(c => c.id === contentId);
+        if (!content) return;
+
+        if (content.type === 'video') {
+          const { error } = await supabase
+            .from('video_content')
+            .delete()
+            .eq('id', contentId);
+          if (error) throw error;
+        } else {
+          const { error } = await supabase
+            .from('blog_content')
+            .delete()
+            .eq('id', contentId);
+          if (error) throw error;
+        }
+
+        // UI에서 제거
+        setContents(prev => prev.filter(content => content.id !== contentId));
+        alert('콘텐츠가 삭제되었습니다.');
+      } catch (error) {
+        console.error('삭제 중 오류:', error);
+        alert('삭제 중 오류가 발생했습니다: ' + error.message);
+      }
     }
   };
 

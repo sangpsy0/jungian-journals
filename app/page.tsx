@@ -70,32 +70,88 @@ export default function HomePage() {
         console.error('블로그 데이터 로드 오류:', blogError)
       }
 
-      const formattedVideos: ContentItem[] = (videoData || []).map(video => ({
-        id: video.id,
-        title: video.title,
-        summary: video.description,
-        keywords: video.keywords || [],
-        youtubeId: video.youtube_url ? extractYouTubeId(video.youtube_url) : undefined,
-        youtubeUrl: video.youtube_url,
-        thumbnail: video.youtube_url ? `https://img.youtube.com/vi/${extractYouTubeId(video.youtube_url)}/maxresdefault.jpg` : "/placeholder.svg",
-        addedDate: video.created_at,
-        tab: video.category as TabType,
-        type: "video" as const,
-        isPremium: video.is_premium || false,
-      }))
+      const formattedVideos: ContentItem[] = (videoData || []).map(video => {
+        console.log('비디오 원본 데이터:', video);
+        console.log('비디오 키워드 타입:', typeof video.keywords, video.keywords);
 
-      const formattedBlogs: ContentItem[] = (blogData || []).map(blog => ({
-        id: blog.id,
-        title: blog.title,
-        summary: blog.content?.substring(0, 150) + '...' || '',
-        keywords: blog.keywords || [],
-        thumbnail: blog.image || "/placeholder.svg",
-        addedDate: blog.created_at,
-        tab: "Blog by AI" as TabType,
-        type: "blog" as const,
-        isPremium: blog.is_premium || false,
-        content: blog.content,
-      }))
+        // 키워드가 문자열인 경우 배열로 변환
+        let processedKeywords = [];
+        if (video.keywords) {
+          if (typeof video.keywords === 'string') {
+            try {
+              // JSON 문자열인 경우 파싱
+              processedKeywords = JSON.parse(video.keywords);
+            } catch {
+              // 쉼표로 구분된 문자열인 경우 분할
+              processedKeywords = video.keywords.split(',').map(k => k.trim()).filter(k => k);
+            }
+          } else if (Array.isArray(video.keywords)) {
+            processedKeywords = video.keywords;
+          }
+        }
+
+        console.log('처리된 키워드:', processedKeywords);
+
+        // 키워드가 없는 경우 임시 키워드 추가 (테스트용)
+        if (processedKeywords.length === 0) {
+          processedKeywords = ['JavaScript', 'React', 'Next.js'];
+        }
+
+        return {
+          id: video.id,
+          title: video.title,
+          summary: video.description || '',
+          keywords: processedKeywords,
+          youtubeId: video.youtube_url ? extractYouTubeId(video.youtube_url) : undefined,
+          youtubeUrl: video.youtube_url,
+          thumbnail: video.youtube_url ? `https://img.youtube.com/vi/${extractYouTubeId(video.youtube_url)}/maxresdefault.jpg` : "/placeholder.svg",
+          addedDate: video.created_at,
+          tab: video.category as TabType,
+          type: "video" as const,
+          isPremium: video.is_premium || false,
+        };
+      })
+
+      const formattedBlogs: ContentItem[] = (blogData || []).map(blog => {
+        console.log('블로그 원본 데이터:', blog);
+        console.log('블로그 키워드 타입:', typeof blog.keywords, blog.keywords);
+
+        // 키워드가 문자열인 경우 배열로 변환
+        let processedKeywords = [];
+        if (blog.keywords) {
+          if (typeof blog.keywords === 'string') {
+            try {
+              // JSON 문자열인 경우 파싱
+              processedKeywords = JSON.parse(blog.keywords);
+            } catch {
+              // 쉼표로 구분된 문자열인 경우 분할
+              processedKeywords = blog.keywords.split(',').map(k => k.trim()).filter(k => k);
+            }
+          } else if (Array.isArray(blog.keywords)) {
+            processedKeywords = blog.keywords;
+          }
+        }
+
+        console.log('처리된 블로그 키워드:', processedKeywords);
+
+        // 키워드가 없는 경우 임시 키워드 추가 (테스트용)
+        if (processedKeywords.length === 0) {
+          processedKeywords = ['Psychology', 'Jung', 'AI'];
+        }
+
+        return {
+          id: blog.id,
+          title: blog.title,
+          summary: blog.content?.substring(0, 150) + '...' || '',
+          keywords: processedKeywords,
+          thumbnail: blog.image || "/placeholder.svg",
+          addedDate: blog.created_at,
+          tab: "Blog by AI" as TabType,
+          type: "blog" as const,
+          isPremium: blog.is_premium || false,
+          content: blog.content,
+        };
+      })
 
       setVideos([...formattedVideos, ...formattedBlogs])
     } catch (error) {
@@ -123,7 +179,7 @@ export default function HomePage() {
       const matchesSearch =
         searchTerm === "" ||
         video.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        video.summary.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (video.summary && video.summary.toLowerCase().includes(searchTerm.toLowerCase())) ||
         video.keywords.some((keyword) => keyword.toLowerCase().includes(searchTerm.toLowerCase()))
 
       const matchesKeyword = !selectedKeyword || video.keywords.includes(selectedKeyword)
@@ -481,20 +537,27 @@ function ContentCard({
       </CardHeader>
       <CardContent className="pt-0">
         <div className="flex flex-wrap gap-1 mb-3">
-          {video.keywords.map((keyword) => (
-            <Badge
-              key={keyword}
-              variant="secondary"
-              className="text-xs cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors"
-              onClick={(e) => {
-                e.stopPropagation()
-                onKeywordClick(keyword)
-              }}
-            >
-              <Tag className="h-3 w-3 mr-1" />
-              {keyword}
-            </Badge>
-          ))}
+          {(() => {
+            console.log('ContentCard 키워드 렌더링:', video.title, video.keywords);
+            return video.keywords && video.keywords.length > 0 ? (
+              video.keywords.map((keyword) => (
+                <Badge
+                  key={keyword}
+                  variant="secondary"
+                  className="text-xs cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onKeywordClick(keyword)
+                  }}
+                >
+                  <Tag className="h-3 w-3 mr-1" />
+                  {keyword}
+                </Badge>
+              ))
+            ) : (
+              <div className="text-xs text-muted-foreground">키워드 없음</div>
+            );
+          })()}
         </div>
         <div className="flex items-center justify-between text-xs text-muted-foreground" onClick={onPlay}>
           <div className="flex items-center">
