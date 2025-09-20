@@ -350,57 +350,40 @@ export default function ContentManagement() {
           {filteredContents.map((content) => (
             <Card key={content.id} className="hover:shadow-md transition-shadow">
               <CardContent className="p-4">
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex items-start space-x-3 flex-1">
-                    <div className="flex-shrink-0">
-                      {content.type === 'video' ? (
-                        <div className="w-8 h-8 bg-blue-100 rounded-md flex items-center justify-center">
-                          <Play className="h-4 w-4 text-blue-600" />
-                        </div>
-                      ) : (
-                        <div className="w-8 h-8 bg-green-100 rounded-md flex items-center justify-center">
-                          <FileText className="h-4 w-4 text-green-600" />
-                        </div>
-                      )}
-                    </div>
+                <div className="flex flex-col space-y-3 mb-3">
+                  {/* 제목과 버튼 영역 */}
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-start space-x-3 flex-1 min-w-0">
+                      <div className="flex-shrink-0">
+                        {content.type === 'video' ? (
+                          <div className="w-8 h-8 bg-blue-100 rounded-md flex items-center justify-center">
+                            <Play className="h-4 w-4 text-blue-600" />
+                          </div>
+                        ) : (
+                          <div className="w-8 h-8 bg-green-100 rounded-md flex items-center justify-center">
+                            <FileText className="h-4 w-4 text-green-600" />
+                          </div>
+                        )}
+                      </div>
 
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center space-x-2 mb-1">
-                        <h3 className="text-sm font-semibold truncate">{content.title}</h3>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="text-sm font-semibold leading-5 break-words">{content.title}</h3>
                         {content.isPremium && (
-                          <Badge variant="secondary" className="bg-amber-100 text-amber-800 text-xs">
+                          <Badge variant="secondary" className="bg-amber-100 text-amber-800 text-xs mt-1">
                             <Star className="h-2 w-2 mr-1" />
                             프리미엄
                           </Badge>
                         )}
                       </div>
-
-                      <div className="flex items-center space-x-3 text-xs text-muted-foreground mb-2">
-                        <span>{content.category}</span>
-                        <span>{new Date(content.addedDate).toLocaleDateString('ko-KR')}</span>
-                      </div>
-
-                      <div className="flex flex-wrap gap-1 mb-2">
-                        {content.keywords.slice(0, 3).map((keyword) => (
-                          <Badge key={keyword} variant="outline" className="text-xs">
-                            {keyword}
-                          </Badge>
-                        ))}
-                        {content.keywords.length > 3 && (
-                          <Badge variant="outline" className="text-xs">
-                            +{content.keywords.length - 3}
-                          </Badge>
-                        )}
-                      </div>
                     </div>
-                  </div>
 
-                  <div className="flex items-start space-x-1">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleEdit(content.id)}
-                      className="h-6 w-6 p-0"
+                    {/* 편집/삭제 버튼 - 항상 오른쪽 상단에 고정 */}
+                    <div className="flex items-start space-x-1 flex-shrink-0">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleEdit(content.id)}
+                        className="h-6 w-6 p-0"
                     >
                       <Edit className="h-3 w-3" />
                     </Button>
@@ -412,6 +395,28 @@ export default function ContentManagement() {
                     >
                       <Trash2 className="h-3 w-3" />
                     </Button>
+                  </div>
+
+                  {/* 카테고리, 날짜, 키워드 정보 */}
+                  <div className="space-y-2">
+                    <div className="flex items-center space-x-3 text-xs text-muted-foreground">
+                      <span>{content.category}</span>
+                      <span>•</span>
+                      <span>{new Date(content.addedDate).toLocaleDateString('ko-KR')}</span>
+                    </div>
+
+                    <div className="flex flex-wrap gap-1">
+                      {content.keywords.slice(0, 3).map((keyword) => (
+                        <Badge key={keyword} variant="outline" className="text-xs">
+                          {keyword}
+                        </Badge>
+                      ))}
+                      {content.keywords.length > 3 && (
+                        <Badge variant="outline" className="text-xs">
+                          +{content.keywords.length - 3}
+                        </Badge>
+                      )}
+                    </div>
                   </div>
                 </div>
 

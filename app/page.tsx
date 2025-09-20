@@ -70,6 +70,20 @@ export default function HomePage() {
         console.error('블로그 데이터 로드 오류:', blogError)
       }
 
+      // 📊 데이터베이스 원본 키워드 상태 확인
+      console.log('📊 데이터베이스에서 로드된 원본 데이터:');
+      if (videoData && videoData.length > 0) {
+        videoData.slice(0, 3).forEach((video, index) => {
+          console.log(`${index + 1}. ${video.title}:`, {
+            keywords: video.keywords,
+            keywordType: typeof video.keywords,
+            isNull: video.keywords === null,
+            isUndefined: video.keywords === undefined,
+            rawValue: JSON.stringify(video.keywords)
+          });
+        });
+      }
+
       const formattedVideos: ContentItem[] = (videoData || []).map(video => {
         console.log('비디오 원본 데이터:', video);
         console.log('비디오 키워드 타입:', typeof video.keywords, video.keywords);
@@ -80,22 +94,31 @@ export default function HomePage() {
           if (typeof video.keywords === 'string') {
             try {
               // JSON 문자열인 경우 파싱
-              processedKeywords = JSON.parse(video.keywords);
+              const parsed = JSON.parse(video.keywords);
+              processedKeywords = Array.isArray(parsed) ? parsed : [];
             } catch {
               // 쉼표로 구분된 문자열인 경우 분할
-              processedKeywords = video.keywords.split(',').map(k => k.trim()).filter(k => k);
+              processedKeywords = video.keywords.split(',').map((k: any) => k.trim()).filter((k: any) => k);
             }
           } else if (Array.isArray(video.keywords)) {
             processedKeywords = video.keywords;
           }
         }
 
-        console.log('처리된 키워드:', processedKeywords);
-
-        // 키워드가 없는 경우 임시 키워드 추가 (테스트용)
-        if (processedKeywords.length === 0) {
-          processedKeywords = ['JavaScript', 'React', 'Next.js'];
+        // 키워드가 비어있으면 빈 배열로 설정
+        if (!processedKeywords || !Array.isArray(processedKeywords)) {
+          processedKeywords = [];
         }
+
+        // 테스트 키워드 제거됨
+
+        console.log('🔍 키워드 디버깅:', {
+          title: video.title,
+          rawKeywords: video.keywords,
+          keywordType: typeof video.keywords,
+          processedKeywords,
+          processedLength: processedKeywords.length
+        });
 
         return {
           id: video.id,
@@ -122,22 +145,23 @@ export default function HomePage() {
           if (typeof blog.keywords === 'string') {
             try {
               // JSON 문자열인 경우 파싱
-              processedKeywords = JSON.parse(blog.keywords);
+              const parsed = JSON.parse(blog.keywords);
+              processedKeywords = Array.isArray(parsed) ? parsed : [];
             } catch {
               // 쉼표로 구분된 문자열인 경우 분할
-              processedKeywords = blog.keywords.split(',').map(k => k.trim()).filter(k => k);
+              processedKeywords = blog.keywords.split(',').map((k: any) => k.trim()).filter((k: any) => k);
             }
           } else if (Array.isArray(blog.keywords)) {
             processedKeywords = blog.keywords;
           }
         }
 
-        console.log('처리된 블로그 키워드:', processedKeywords);
-
-        // 키워드가 없는 경우 임시 키워드 추가 (테스트용)
-        if (processedKeywords.length === 0) {
-          processedKeywords = ['Psychology', 'Jung', 'AI'];
+        // 키워드가 비어있으면 빈 배열로 설정
+        if (!processedKeywords || !Array.isArray(processedKeywords)) {
+          processedKeywords = [];
         }
+
+        console.log('처리된 블로그 키워드:', processedKeywords);
 
         return {
           id: blog.id,
@@ -538,7 +562,12 @@ function ContentCard({
       <CardContent className="pt-0">
         <div className="flex flex-wrap gap-1 mb-3">
           {(() => {
-            console.log('ContentCard 키워드 렌더링:', video.title, video.keywords);
+            console.log('🎨 ContentCard 키워드 렌더링:', {
+              title: video.title,
+              keywords: video.keywords,
+              keywordsLength: video.keywords?.length,
+              hasKeywords: video.keywords && video.keywords.length > 0
+            });
             return video.keywords && video.keywords.length > 0 ? (
               video.keywords.map((keyword) => (
                 <Badge

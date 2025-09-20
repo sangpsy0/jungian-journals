@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { useAdmin } from '@/components/admin-provider';
 import { useAuth } from '@/components/auth-provider';
+import { createBrowserClient } from '@supabase/ssr';
 
 export default function AdminDashboard() {
   const router = useRouter();
@@ -42,15 +43,98 @@ export default function AdminDashboard() {
   // 실제 통계 데이터 로드
   useEffect(() => {
     const loadRealStats = async () => {
-      // 실제 데이터: 현재 개발 단계 기준
-      setStats({
-        totalUsers: 1, // 현재 테스트 사용자 1명 (cyborg17th@gmail.com)
-        premiumUsers: 0, // 아직 프리미엄 사용자 없음
-        totalRevenue: 0, // 아직 실제 결제 없음
-        todayVisits: 15 // 오늘 개발/테스트 방문 횟수
-      });
+      console.log('📊 통계 데이터 로드 시작');
+      try {
+        const supabaseClient = createBrowserClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL!,
+          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+        );
+        console.log('🔗 Supabase 클라이언트 생성됨');
+
+        // 먼저 실제 존재하는 테이블 확인
+        console.log('🔍 실제 존재하는 테이블들 확인 중...');
+
+        // 먼저 video_content 테이블로 연결 테스트
+        const { data: testData, error: testError } = await supabaseClient
+          .from('video_content')
+          .select('id', { count: 'exact', head: true });
+
+        if (testError) {
+          console.error('❌ Supabase 연결 오류:', testError);
+        } else {
+          console.log('✅ Supabase 연결 성공, video_content 테이블 확인됨');
+        }
+
+        // 실제 존재하는 테이블들로 통계 계산
+
+        // 1. 총 콘텐츠 수 (총 사용자 대신)
+        const { count: totalContentCount, error: contentError } = await supabaseClient
+          .from('video_content')
+          .select('*', { count: 'exact', head: true });
+
+        if (contentError) {
+          console.error('❌ 콘텐츠 수 조회 오류:', contentError);
+        } else {
+          console.log('📝 총 콘텐츠 수:', totalContentCount);
+        }
+
+        // 2. 프리미엄 콘텐츠 수
+        const { count: premiumContentCount, error: premiumContentError } = await supabaseClient
+          .from('video_content')
+          .select('*', { count: 'exact', head: true })
+          .eq('is_premium', true);
+
+        if (premiumContentError) {
+          console.error('❌ 프리미엄 콘텐츠 수 조회 오류:', premiumContentError);
+        } else {
+          console.log('💎 프리미엄 콘텐츠 수:', premiumContentCount);
+        }
+
+        // 3. 총 수익 (실제 결제 테이블이 없으므로 0으로 설정)
+        const totalRevenue = 0;
+        console.log('💰 총 수익:', totalRevenue);
+
+        // 4. 오늘 생성된 콘텐츠 수 (방문자 대신)
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+
+        const { count: todayContentCount, error: todayContentError } = await supabaseClient
+          .from('video_content')
+          .select('*', { count: 'exact', head: true })
+          .gte('created_at', today.toISOString())
+          .lt('created_at', tomorrow.toISOString());
+
+        if (todayContentError) {
+          console.error('❌ 오늘 콘텐츠 수 조회 오류:', todayContentError);
+        } else {
+          console.log('📅 오늘 생성된 콘텐츠:', todayContentCount);
+        }
+
+        const newStats = {
+          totalUsers: totalContentCount || 0, // 총 콘텐츠 수
+          premiumUsers: premiumContentCount || 0, // 프리미엄 콘텐츠 수
+          totalRevenue: totalRevenue, // 총 수익
+          todayVisits: todayContentCount || 0 // 오늘 생성된 콘텐츠 수
+        };
+
+        console.log('📊 최종 통계 데이터:', newStats);
+        setStats(newStats);
+
+      } catch (error) {
+        console.error('통계 데이터 로드 중 오류:', error);
+        // 오류 발생 시 기본값 설정
+        setStats({
+          totalUsers: 0,
+          premiumUsers: 0,
+          totalRevenue: 0,
+          todayVisits: 0
+        });
+      }
     };
 
+    // 항상 실행 (디버깅용)
     loadRealStats();
   }, []);
 
@@ -119,26 +203,26 @@ export default function AdminDashboard() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">총 사용자</CardTitle>
+              <CardTitle className="text-sm font-medium">총 콘텐츠</CardTitle>
               <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{stats.totalUsers.toLocaleString()}</div>
               <p className="text-xs text-muted-foreground">
-                개발 초기 단계
+                등록된 콘텐츠
               </p>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">프리미엄 사용자</CardTitle>
+              <CardTitle className="text-sm font-medium">프리미엄 콘텐츠</CardTitle>
               <UserCheck className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{stats.premiumUsers.toLocaleString()}</div>
               <p className="text-xs text-muted-foreground">
-                {stats.totalUsers > 0 ? `전체의 ${((stats.premiumUsers / stats.totalUsers) * 100).toFixed(1)}%` : '아직 프리미엄 사용자 없음'}
+                {stats.totalUsers > 0 ? `전체의 ${((stats.premiumUsers / stats.totalUsers) * 100).toFixed(1)}%` : '프리미엄 콘텐츠'}
               </p>
             </CardContent>
           </Card>
@@ -151,20 +235,20 @@ export default function AdminDashboard() {
             <CardContent>
               <div className="text-2xl font-bold">₩{stats.totalRevenue.toLocaleString()}</div>
               <p className="text-xs text-muted-foreground">
-                아직 실제 결제 없음
+                총 수익
               </p>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">오늘 방문자</CardTitle>
+              <CardTitle className="text-sm font-medium">오늘 새 콘텐츠</CardTitle>
               <Eye className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{stats.todayVisits.toLocaleString()}</div>
               <p className="text-xs text-muted-foreground">
-                개발/테스트 방문
+                오늘 생성된 콘텐츠
               </p>
             </CardContent>
           </Card>

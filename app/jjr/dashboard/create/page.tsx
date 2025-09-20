@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -20,6 +20,7 @@ import {
   Image as ImageIcon
 } from 'lucide-react';
 import { useAdmin } from '@/components/admin-provider';
+import { createBrowserClient } from '@supabase/ssr';
 import { supabase } from '@/lib/supabase';
 
 interface VideoContent {
@@ -42,9 +43,12 @@ interface BlogContent {
 
 export default function CreateContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { isAdminLoggedIn, isLoading } = useAdmin();
   const [contentType, setContentType] = useState<'video' | 'blog'>('video');
   const [keywordInput, setKeywordInput] = useState('');
+  const [editId, setEditId] = useState<string | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
 
   // Video content state
   const [videoContent, setVideoContent] = useState<VideoContent>({
@@ -73,6 +77,102 @@ export default function CreateContent() {
       router.push('/jjr');
     }
   }, [isAdminLoggedIn, isLoading, router]);
+
+  // 편집 모드 확인 및 데이터 로드
+  useEffect(() => {
+    const editParam = searchParams.get('edit');
+    if (editParam) {
+      setEditId(editParam);
+      setIsEditing(true);
+      loadContentForEdit(editParam);
+    }
+  }, [searchParams]);
+
+  const loadContentForEdit = async (contentId: string) => {
+    try {
+      const supabaseClient = createBrowserClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      );
+
+      console.log('편집할 콘텐츠 ID:', contentId);
+
+      // 비디오 콘텐츠 먼저 확인
+      const { data: videoData, error: videoError } = await supabaseClient
+        .from('video_content')
+        .select('*')
+        .eq('id', contentId)
+        .single();
+
+      if (videoData && !videoError) {
+        console.log('비디오 콘텐츠 로드:', videoData);
+        setContentType('video');
+
+        // 키워드 처리
+        let processedKeywords = [];
+        if (videoData.keywords) {
+          if (typeof videoData.keywords === 'string') {
+            try {
+              processedKeywords = JSON.parse(videoData.keywords);
+            } catch {
+              processedKeywords = videoData.keywords.split(',').map(k => k.trim()).filter(k => k);
+            }
+          } else if (Array.isArray(videoData.keywords)) {
+            processedKeywords = videoData.keywords;
+          }
+        }
+
+        setVideoContent({
+          category: videoData.category,
+          title: videoData.title,
+          youtubeUrl: videoData.youtube_url || '',
+          description: videoData.description || '',
+          keywords: processedKeywords,
+          isPremium: videoData.is_premium || false
+        });
+        return;
+      }
+
+      // 블로그 콘텐츠 확인
+      const { data: blogData, error: blogError } = await supabaseClient
+        .from('blog_content')
+        .select('*')
+        .eq('id', contentId)
+        .single();
+
+      if (blogData && !blogError) {
+        console.log('블로그 콘텐츠 로드:', blogData);
+        setContentType('blog');
+
+        // 키워드 처리
+        let processedKeywords = [];
+        if (blogData.keywords) {
+          if (typeof blogData.keywords === 'string') {
+            try {
+              processedKeywords = JSON.parse(blogData.keywords);
+            } catch {
+              processedKeywords = blogData.keywords.split(',').map(k => k.trim()).filter(k => k);
+            }
+          } else if (Array.isArray(blogData.keywords)) {
+            processedKeywords = blogData.keywords;
+          }
+        }
+
+        setBlogContent({
+          title: blogData.title,
+          content: blogData.content || '',
+          keywords: processedKeywords,
+          image: null,
+          imagePreview: blogData.image || null,
+          isPremium: blogData.is_premium || false
+        });
+      }
+
+    } catch (error) {
+      console.error('콘텐츠 로드 중 오류:', error);
+      alert('콘텐츠 로드 중 오류가 발생했습니다.');
+    }
+  };
 
   const addKeyword = () => {
     if (keywordInput.trim()) {
@@ -128,6 +228,11 @@ export default function CreateContent() {
 
   const handleSave = async () => {
     try {
+      const supabaseClient = createBrowserClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      );
+
       if (contentType === 'video') {
         // 필수 필드 검증
         if (!videoContent.title || !videoContent.youtubeUrl) {
@@ -135,25 +240,49 @@ export default function CreateContent() {
           return;
         }
 
-        // 비디오 콘텐츠 Supabase에 저장
-        const { data, error } = await supabase
-          .from('video_content')
-          .insert([{
-            title: videoContent.title,
-            description: videoContent.description,
-            youtube_url: videoContent.youtubeUrl,
-            category: videoContent.category,
-            keywords: videoContent.keywords,
-            is_premium: videoContent.isPremium,
-            created_at: new Date().toISOString()
-          }]);
+        console.log('🔍 저장할 비디오 키워드 상세:', {
+          keywords: videoContent.keywords,
+          type: typeof videoContent.keywords,
+          isArray: Array.isArray(videoContent.keywords),
+          length: videoContent.keywords?.length,
+          stringified: JSON.stringify(videoContent.keywords)
+        });
 
-        if (error) {
-          throw error;
+        if (isEditing && editId) {
+          // 편집 모드: 기존 콘텐츠 업데이트
+          const { data, error } = await supabaseClient
+            .from('video_content')
+            .update({
+              title: videoContent.title,
+              description: videoContent.description,
+              youtube_url: videoContent.youtubeUrl,
+              category: videoContent.category,
+              keywords: JSON.stringify(videoContent.keywords),
+              is_premium: videoContent.isPremium,
+            })
+            .eq('id', editId);
+
+          if (error) throw error;
+          console.log('비디오 콘텐츠 수정 성공:', data);
+          alert('비디오 콘텐츠가 성공적으로 수정되었습니다!');
+        } else {
+          // 신규 생성 모드
+          const { data, error } = await supabaseClient
+            .from('video_content')
+            .insert([{
+              title: videoContent.title,
+              description: videoContent.description,
+              youtube_url: videoContent.youtubeUrl,
+              category: videoContent.category,
+              keywords: JSON.stringify(videoContent.keywords),
+              is_premium: videoContent.isPremium,
+              created_at: new Date().toISOString()
+            }]);
+
+          if (error) throw error;
+          console.log('비디오 콘텐츠 저장 성공:', data);
+          alert('비디오 콘텐츠가 성공적으로 저장되었습니다!');
         }
-
-        console.log('비디오 콘텐츠 저장 성공:', data);
-        alert('비디오 콘텐츠가 저장되었습니다.');
       } else {
         // 필수 필드 검증
         if (!blogContent.title || !blogContent.content) {
@@ -168,24 +297,41 @@ export default function CreateContent() {
           imageUrl = blogContent.imagePreview; // 임시로 미리보기 URL 사용
         }
 
-        // 블로그 콘텐츠 Supabase에 저장
-        const { data, error } = await supabase
-          .from('blog_content')
-          .insert([{
-            title: blogContent.title,
-            content: blogContent.content,
-            keywords: blogContent.keywords,
-            is_premium: blogContent.isPremium,
-            image: imageUrl,
-            created_at: new Date().toISOString()
-          }]);
+        console.log('저장할 블로그 키워드:', blogContent.keywords);
 
-        if (error) {
-          throw error;
+        if (isEditing && editId) {
+          // 편집 모드: 기존 콘텐츠 업데이트
+          const { data, error } = await supabaseClient
+            .from('blog_content')
+            .update({
+              title: blogContent.title,
+              content: blogContent.content,
+              keywords: JSON.stringify(blogContent.keywords),
+              is_premium: blogContent.isPremium,
+              image: imageUrl,
+            })
+            .eq('id', editId);
+
+          if (error) throw error;
+          console.log('블로그 콘텐츠 수정 성공:', data);
+          alert('블로그 콘텐츠가 성공적으로 수정되었습니다!');
+        } else {
+          // 신규 생성 모드
+          const { data, error } = await supabaseClient
+            .from('blog_content')
+            .insert([{
+              title: blogContent.title,
+              content: blogContent.content,
+              keywords: JSON.stringify(blogContent.keywords),
+              is_premium: blogContent.isPremium,
+              image: imageUrl,
+              created_at: new Date().toISOString()
+            }]);
+
+          if (error) throw error;
+          console.log('블로그 콘텐츠 저장 성공:', data);
+          alert('블로그 콘텐츠가 성공적으로 저장되었습니다!');
         }
-
-        console.log('블로그 콘텐츠 저장 성공:', data);
-        alert('블로그 콘텐츠가 저장되었습니다.');
       }
 
       // 저장 후 콘텐츠 관리 페이지로 이동
@@ -224,8 +370,12 @@ export default function CreateContent() {
               <span>콘텐츠 관리로</span>
             </Button>
             <div>
-              <h1 className="text-xl font-bold text-slate-900">콘텐츠 작성</h1>
-              <p className="text-sm text-slate-600">새로운 비디오 또는 블로그 콘텐츠 작성</p>
+              <h1 className="text-xl font-bold text-slate-900">
+                {isEditing ? '콘텐츠 편집' : '콘텐츠 작성'}
+              </h1>
+              <p className="text-sm text-slate-600">
+                {isEditing ? '기존 콘텐츠를 수정합니다' : '새로운 비디오 또는 블로그 콘텐츠 작성'}
+              </p>
             </div>
           </div>
           <div className="flex items-center space-x-2">
@@ -235,7 +385,7 @@ export default function CreateContent() {
             </Button>
             <Button onClick={handleSave}>
               <Save className="h-4 w-4 mr-1" />
-              저장
+              {isEditing ? '수정' : '저장'}
             </Button>
           </div>
         </div>
