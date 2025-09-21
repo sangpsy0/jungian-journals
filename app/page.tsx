@@ -34,11 +34,14 @@ type TabType = "Journals" | "Books" | "Fairy Tales" | "Blog by AI"
 export default function HomePage() {
   const router = useRouter()
   const [videos, setVideos] = useState<ContentItem[]>([])
+  const [displayedVideos, setDisplayedVideos] = useState<ContentItem[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedKeyword, setSelectedKeyword] = useState<string | null>(null)
   const [selectedAlphabet, setSelectedAlphabet] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<TabType>("Journals")
+  const [hasMore, setHasMore] = useState(true)
+  const ITEMS_PER_PAGE = 12
   const { user } = useAuth()
 
   // Supabase에서 콘텐츠 데이터 가져오기
@@ -173,7 +176,15 @@ export default function HomePage() {
         };
       })
 
-      setVideos([...formattedVideos, ...formattedBlogs])
+      // 모든 콘텐츠 저장 (랜덤 순서)
+      const allContent = [...formattedVideos, ...formattedBlogs].sort(() => Math.random() - 0.5)
+      setVideos(allContent)
+
+      // 초기 표시: Journals 탭 콘텐츠만 랜덤하게
+      const journalsContent = allContent.filter(v => v.tab === "Journals")
+      const shuffledJournals = [...journalsContent].sort(() => Math.random() - 0.5)
+      setDisplayedVideos(shuffledJournals.slice(0, ITEMS_PER_PAGE))
+      setHasMore(shuffledJournals.length > ITEMS_PER_PAGE)
     } catch (error) {
       console.error('데이터 로드 중 오류:', error)
     } finally {
@@ -193,7 +204,7 @@ export default function HomePage() {
   }, [])
 
   const filteredVideos = useMemo(() => {
-    return videos.filter((video) => {
+    return displayedVideos.filter((video) => {
       const matchesTab = video.tab === activeTab
 
       const matchesSearch =
@@ -206,7 +217,43 @@ export default function HomePage() {
 
       return matchesTab && matchesSearch && matchesKeyword
     })
-  }, [videos, searchTerm, selectedKeyword, activeTab])
+  }, [displayedVideos, searchTerm, selectedKeyword, activeTab])
+
+  // 스크롤 이벤트 처리
+  useEffect(() => {
+    const handleScroll = () => {
+      if (!loading && hasMore &&
+          window.innerHeight + document.documentElement.scrollTop >= document.documentElement.offsetHeight - 100) {
+        loadMore()
+      }
+    }
+
+    window.addEventListener('scroll', handleScroll)
+    return () => window.removeEventListener('scroll', handleScroll)
+  }, [loading, hasMore, displayedVideos])
+
+  const loadMore = () => {
+    const allFilteredVideos = videos.filter((video) => {
+      const matchesTab = video.tab === activeTab
+      const matchesSearch =
+        searchTerm === "" ||
+        video.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (video.summary && video.summary.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        video.keywords.some((keyword) => keyword.toLowerCase().includes(searchTerm.toLowerCase()))
+      const matchesKeyword = !selectedKeyword || video.keywords.includes(selectedKeyword)
+      return matchesTab && matchesSearch && matchesKeyword
+    })
+
+    const currentLength = displayedVideos.length
+    const nextItems = allFilteredVideos.slice(currentLength, currentLength + ITEMS_PER_PAGE)
+
+    if (nextItems.length > 0) {
+      setDisplayedVideos(prev => [...prev, ...nextItems])
+      setHasMore(currentLength + nextItems.length < allFilteredVideos.length)
+    } else {
+      setHasMore(false)
+    }
+  }
 
   const keywordsByAlphabet = useMemo(() => {
     const currentTabVideos = videos.filter((video) => video.tab === activeTab)
@@ -247,6 +294,12 @@ export default function HomePage() {
     setActiveTab(tab)
     setSelectedKeyword(null)
     setSelectedAlphabet(null)
+
+    // 탭 변경시 해당 탭의 콘텐츠를 랜덤하게 섞어서 표시
+    const tabVideos = videos.filter(v => v.tab === tab)
+    const shuffled = [...tabVideos].sort(() => Math.random() - 0.5)
+    setDisplayedVideos(shuffled.slice(0, ITEMS_PER_PAGE))
+    setHasMore(shuffled.length > ITEMS_PER_PAGE)
   }
 
   const handleHomeClick = () => {

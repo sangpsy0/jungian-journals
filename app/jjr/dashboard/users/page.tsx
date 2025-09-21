@@ -1,155 +1,230 @@
-'use client';
+"use client"
 
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
+import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { supabase } from "@/lib/supabase"
+import { useAdmin } from "@/components/admin-provider"
 import {
-  Users,
-  Search,
-  ArrowLeft,
-  Globe,
-  UserCheck,
-  Calendar,
-  Mail,
-  MapPin,
-  Star,
-  CreditCard,
-  Eye,
-  Filter
-} from 'lucide-react';
-import { useAdmin } from '@/components/admin-provider';
+  Users, UserPlus, UserCheck, UserX, Calendar, Mail, Shield,
+  ArrowLeft, Search, Filter, Download, Activity, Globe, MapPin, Eye, Star, CreditCard
+} from "lucide-react"
+import { Input } from "@/components/ui/input"
 
 interface UserData {
-  id: string;
-  email: string;
-  name: string;
-  country: string;
-  countryCode: string;
-  joinDate: string;
-  isPremium: boolean;
-  lastLogin: string;
-  totalViews: number;
-  subscriptionDate?: string;
-  referrer: string;
-  avatar?: string;
+  id: string
+  email: string
+  full_name?: string
+  avatar_url?: string
+  created_at: string
+  last_sign_in_at?: string
+  is_premium: boolean
+  premium_expires_at?: string
+  total_views: number
+  total_content: number
+  country?: string
+  countryCode?: string
+  referrer?: string
 }
 
-export default function UserManagement() {
-  const router = useRouter();
-  const { isAdminLoggedIn, isLoading } = useAdmin();
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCountry, setSelectedCountry] = useState<string>('all');
-  const [selectedStatus, setSelectedStatus] = useState<string>('all');
-  const [users, setUsers] = useState<UserData[]>([]);
+export default function UsersPage() {
+  const router = useRouter()
+  const { isAdminLoggedIn, isLoading: adminLoading } = useAdmin()
+  const [users, setUsers] = useState<UserData[]>([])
+  const [filteredUsers, setFilteredUsers] = useState<UserData[]>([])
+  const [loading, setLoading] = useState(true)
+  const [searchTerm, setSearchTerm] = useState("")
+  const [selectedCountry, setSelectedCountry] = useState<string>('all')
+  const [selectedStatus, setSelectedStatus] = useState<string>('all')
+
+  const [stats, setStats] = useState({
+    totalUsers: 0,
+    premiumUsers: 0,
+    activeToday: 0,
+    newThisWeek: 0,
+    avgViews: 0
+  })
 
   useEffect(() => {
-    if (!isLoading && !isAdminLoggedIn) {
-      router.push('/jjr');
+    if (!adminLoading && !isAdminLoggedIn) {
+      router.push('/jjr')
     }
-  }, [isAdminLoggedIn, isLoading, router]);
+  }, [isAdminLoggedIn, adminLoading, router])
 
   useEffect(() => {
-    // 실제 사용자 데이터 (확장된 샘플)
-    const userData: UserData[] = [
-      {
-        id: '1fe7bee1-717b-473b-8154-f21d5de2386c',
-        email: 'cyborg17th@gmail.com',
-        name: 'sangchun park',
-        country: 'South Korea',
-        countryCode: 'KR',
-        joinDate: '2025-09-19',
-        isPremium: false,
-        lastLogin: '2025-09-20T00:07:11Z',
-        totalViews: 28,
-        referrer: 'Direct',
-        avatar: 'https://lh3.googleusercontent.com/a/ACg8ocLjdsIowAxuWQmVVa5uWM8jZo9m8ZDhPsUhRsawTptpfHWAlQ=s96-c'
-      },
-      {
-        id: 'demo-user-1',
-        email: 'john.doe@example.com',
-        name: 'John Doe',
-        country: 'United States',
-        countryCode: 'US',
-        joinDate: '2024-01-15',
-        isPremium: true,
-        lastLogin: '2025-09-19T15:30:00Z',
-        totalViews: 245,
-        subscriptionDate: '2024-02-01',
-        referrer: 'Google Search'
-      },
-      {
-        id: 'demo-user-2',
-        email: 'yuki.tanaka@example.jp',
-        name: 'Yuki Tanaka',
-        country: 'Japan',
-        countryCode: 'JP',
-        joinDate: '2024-01-20',
-        isPremium: false,
-        lastLogin: '2025-09-18T09:15:00Z',
-        totalViews: 156,
-        referrer: 'Social Media'
-      },
-      {
-        id: 'demo-user-3',
-        email: 'marie.dubois@example.fr',
-        name: 'Marie Dubois',
-        country: 'France',
-        countryCode: 'FR',
-        joinDate: '2024-01-25',
-        isPremium: true,
-        lastLogin: '2025-09-17T14:20:00Z',
-        totalViews: 189,
-        subscriptionDate: '2024-03-10',
-        referrer: 'YouTube'
-      },
-      {
-        id: 'demo-user-4',
-        email: 'hans.mueller@example.de',
-        name: 'Hans Mueller',
-        country: 'Germany',
-        countryCode: 'DE',
-        joinDate: '2024-02-01',
-        isPremium: false,
-        lastLogin: '2025-09-16T11:45:00Z',
-        totalViews: 98,
-        referrer: 'Direct'
+    if (isAdminLoggedIn) {
+      fetchUsers()
+    }
+  }, [isAdminLoggedIn])
+
+  useEffect(() => {
+    // 검색 및 필터링
+    let filtered = users
+
+    // 검색어 필터
+    if (searchTerm) {
+      filtered = filtered.filter(user =>
+        user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.full_name?.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+    }
+
+    // 국가 필터
+    if (selectedCountry !== 'all') {
+      filtered = filtered.filter(user => user.countryCode === selectedCountry)
+    }
+
+    // 상태 필터
+    if (selectedStatus === 'premium') {
+      filtered = filtered.filter(user => user.is_premium)
+    } else if (selectedStatus === 'free') {
+      filtered = filtered.filter(user => !user.is_premium)
+    }
+
+    setFilteredUsers(filtered)
+  }, [searchTerm, selectedCountry, selectedStatus, users])
+
+  const fetchUsers = async () => {
+    try {
+      setLoading(true)
+
+      // Supabase Auth에서 사용자 목록 가져오기
+      const { data: { users: authUsers }, error: authError } = await supabase.auth.admin.listUsers()
+
+      if (authError) {
+        console.error('Auth 사용자 목록 오류:', authError)
+        // 일반 사용자 권한일 경우 대체 방법 사용
+        const { data: { user: currentUser } } = await supabase.auth.getUser()
+
+        if (currentUser) {
+          // 현재 로그인한 사용자 정보만 표시
+          const formattedUser: UserData = {
+            id: currentUser.id,
+            email: currentUser.email || '',
+            full_name: currentUser.user_metadata?.full_name || currentUser.user_metadata?.name,
+            avatar_url: currentUser.user_metadata?.avatar_url || currentUser.user_metadata?.picture,
+            created_at: currentUser.created_at || '',
+            last_sign_in_at: currentUser.last_sign_in_at,
+            is_premium: false,
+            premium_expires_at: undefined,
+            total_views: 0,
+            total_content: 0,
+            country: 'South Korea',
+            countryCode: 'KR',
+            referrer: 'Direct'
+          }
+
+          setUsers([formattedUser])
+          setFilteredUsers([formattedUser])
+
+          setStats({
+            totalUsers: 1,
+            premiumUsers: 0,
+            activeToday: 1,
+            newThisWeek: 0,
+            avgViews: 0
+          })
+        }
+
+        return
       }
-    ];
 
-    setUsers(userData);
-  }, []);
+      // 비디오 콘텐츠 조회수 데이터
+      const { data: videoContent } = await supabase
+        .from('video_content')
+        .select('id, views')
 
-  const filteredUsers = users.filter(user => {
-    const matchesSearch = user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         user.name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCountry = selectedCountry === 'all' || user.countryCode === selectedCountry;
-    const matchesStatus = selectedStatus === 'all' ||
-                         (selectedStatus === 'premium' && user.isPremium) ||
-                         (selectedStatus === 'free' && !user.isPremium);
-    return matchesSearch && matchesCountry && matchesStatus;
-  });
+      // 블로그 콘텐츠 조회수 데이터
+      const { data: blogContent } = await supabase
+        .from('blog_content')
+        .select('id, views')
 
-  const countries = Array.from(new Set(users.map(u => ({ code: u.countryCode, name: u.country }))))
-    .sort((a, b) => a.name.localeCompare(b.name));
+      // 총 조회수 계산
+      const totalVideoViews = videoContent?.reduce((sum, v) => sum + (v.views || 0), 0) || 0
+      const totalBlogViews = blogContent?.reduce((sum, b) => sum + (b.views || 0), 0) || 0
+      const totalContentViews = totalVideoViews + totalBlogViews
 
-  const countryStats = countries.map(country => ({
-    ...country,
-    count: users.filter(u => u.countryCode === country.code).length,
-    premiumCount: users.filter(u => u.countryCode === country.code && u.isPremium).length
-  }));
+      // 사용자 데이터 포맷팅
+      const formattedUsers: UserData[] = authUsers?.map(user => {
+        // 사용자별 평균 조회수 시뮬레이션 (실제로는 user_id와 연결 필요)
+        const userViews = Math.floor(totalContentViews / Math.max(authUsers.length, 1))
 
-  const referrerStats = Array.from(new Set(users.map(u => u.referrer)))
-    .map(referrer => ({
-      name: referrer,
-      count: users.filter(u => u.referrer === referrer).length,
-      percentage: Math.round((users.filter(u => u.referrer === referrer).length / users.length) * 100)
-    }))
-    .sort((a, b) => b.count - a.count);
+        // 국가 정보 추출 (user_metadata에서)
+        const locale = user.user_metadata?.locale || 'ko'
+        const country = locale === 'ko' ? 'South Korea' :
+                       locale === 'en' ? 'United States' :
+                       locale === 'ja' ? 'Japan' : 'Other'
+        const countryCode = locale === 'ko' ? 'KR' :
+                           locale === 'en' ? 'US' :
+                           locale === 'ja' ? 'JP' : 'XX'
 
-  const getCountryFlag = (countryCode: string) => {
+        return {
+          id: user.id,
+          email: user.email || '',
+          full_name: user.user_metadata?.full_name || user.user_metadata?.name,
+          avatar_url: user.user_metadata?.avatar_url || user.user_metadata?.picture,
+          created_at: user.created_at || '',
+          last_sign_in_at: user.last_sign_in_at,
+          is_premium: false, // 결제 시스템 구현 후 실제 데이터
+          premium_expires_at: undefined,
+          total_views: userViews,
+          total_content: 0,
+          country,
+          countryCode,
+          referrer: 'Google' // 실제로는 추적 시스템 필요
+        }
+      }) || []
+
+      // 통계 계산
+      const today = new Date()
+      const weekAgo = new Date(today)
+      weekAgo.setDate(weekAgo.getDate() - 7)
+
+      const stats = {
+        totalUsers: formattedUsers.length,
+        premiumUsers: formattedUsers.filter(u => u.is_premium).length,
+        activeToday: formattedUsers.filter(u => {
+          if (!u.last_sign_in_at) return false
+          const lastSignIn = new Date(u.last_sign_in_at)
+          return lastSignIn.toDateString() === today.toDateString()
+        }).length,
+        newThisWeek: formattedUsers.filter(u => {
+          const createdAt = new Date(u.created_at)
+          return createdAt >= weekAgo
+        }).length,
+        avgViews: formattedUsers.length > 0
+          ? Math.round(formattedUsers.reduce((sum, u) => sum + u.total_views, 0) / formattedUsers.length)
+          : 0
+      }
+
+      setUsers(formattedUsers)
+      setFilteredUsers(formattedUsers)
+      setStats(stats)
+
+    } catch (error) {
+      console.error('사용자 데이터 로드 오류:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const getTimeAgo = (dateString?: string) => {
+    if (!dateString) return '활동 없음'
+
+    const date = new Date(dateString)
+    const now = new Date()
+    const seconds = Math.floor((now.getTime() - date.getTime()) / 1000)
+
+    if (seconds < 60) return '방금 전'
+    if (seconds < 3600) return `${Math.floor(seconds / 60)}분 전`
+    if (seconds < 86400) return `${Math.floor(seconds / 3600)}시간 전`
+    if (seconds < 604800) return `${Math.floor(seconds / 86400)}일 전`
+    return date.toLocaleDateString('ko-KR')
+  }
+
+  const getCountryFlag = (countryCode?: string) => {
     const flags: { [key: string]: string } = {
       'KR': '🇰🇷',
       'US': '🇺🇸',
@@ -161,20 +236,43 @@ export default function UserManagement() {
       'CA': '🇨🇦',
       'AU': '🇦🇺',
       'BR': '🇧🇷'
-    };
-    return flags[countryCode] || '🌍';
-  };
+    }
+    return flags[countryCode || 'XX'] || '🌍'
+  }
 
-  if (isLoading) {
+  // 국가별 통계
+  const countries = Array.from(new Set(users.map(u => ({
+    code: u.countryCode || 'XX',
+    name: u.country || 'Unknown'
+  })))).filter((country, index, self) =>
+    index === self.findIndex(c => c.code === country.code)
+  )
+
+  const countryStats = countries.map(country => ({
+    ...country,
+    count: users.filter(u => u.countryCode === country.code).length,
+    premiumCount: users.filter(u => u.countryCode === country.code && u.is_premium).length
+  })).sort((a, b) => b.count - a.count)
+
+  // 유입 경로 통계
+  const referrerStats = Array.from(new Set(users.map(u => u.referrer || 'Direct')))
+    .map(referrer => ({
+      name: referrer,
+      count: users.filter(u => (u.referrer || 'Direct') === referrer).length,
+      percentage: Math.round((users.filter(u => (u.referrer || 'Direct') === referrer).length / Math.max(users.length, 1)) * 100)
+    }))
+    .sort((a, b) => b.count - a.count)
+
+  if (adminLoading || loading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="flex items-center justify-center min-h-screen">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
       </div>
-    );
+    )
   }
 
   if (!isAdminLoggedIn) {
-    return null;
+    return null
   }
 
   return (
@@ -209,7 +307,7 @@ export default function UserManagement() {
               <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{users.length}</div>
+              <div className="text-2xl font-bold">{stats.totalUsers}</div>
               <p className="text-xs text-muted-foreground">
                 {countries.length}개 국가에서 가입
               </p>
@@ -222,11 +320,9 @@ export default function UserManagement() {
               <UserCheck className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">
-                {users.filter(u => u.isPremium).length}
-              </div>
+              <div className="text-2xl font-bold">{stats.premiumUsers}</div>
               <p className="text-xs text-muted-foreground">
-                전체의 {Math.round((users.filter(u => u.isPremium).length / users.length) * 100)}%
+                전체의 {stats.totalUsers > 0 ? Math.round((stats.premiumUsers / stats.totalUsers) * 100) : 0}%
               </p>
             </CardContent>
           </Card>
@@ -237,15 +333,9 @@ export default function UserManagement() {
               <Eye className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">
-                {users.filter(u => {
-                  const lastLogin = new Date(u.lastLogin);
-                  const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-                  return lastLogin > weekAgo;
-                }).length}
-              </div>
+              <div className="text-2xl font-bold">{stats.activeToday}</div>
               <p className="text-xs text-muted-foreground">
-                최근 7일 로그인
+                오늘 로그인
               </p>
             </CardContent>
           </Card>
@@ -256,9 +346,7 @@ export default function UserManagement() {
               <Globe className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">
-                {Math.round(users.reduce((sum, u) => sum + u.totalViews, 0) / users.length)}
-              </div>
+              <div className="text-2xl font-bold">{stats.avgViews}</div>
               <p className="text-xs text-muted-foreground">
                 사용자당 평균
               </p>
@@ -277,25 +365,31 @@ export default function UserManagement() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {countryStats.map((country) => (
-                  <div key={country.code} className="flex items-center justify-between">
-                    <div className="flex items-center space-x-3">
-                      <span className="text-2xl">{getCountryFlag(country.code)}</span>
-                      <div>
-                        <div className="font-medium">{country.name}</div>
+                {countryStats.length > 0 ? (
+                  countryStats.map((country) => (
+                    <div key={country.code} className="flex items-center justify-between">
+                      <div className="flex items-center space-x-3">
+                        <span className="text-2xl">{getCountryFlag(country.code)}</span>
+                        <div>
+                          <div className="font-medium">{country.name}</div>
+                          <div className="text-sm text-muted-foreground">
+                            프리미엄: {country.premiumCount}명
+                          </div>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="font-bold">{country.count}명</div>
                         <div className="text-sm text-muted-foreground">
-                          프리미엄: {country.premiumCount}명
+                          {Math.round((country.count / Math.max(users.length, 1)) * 100)}%
                         </div>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <div className="font-bold">{country.count}명</div>
-                      <div className="text-sm text-muted-foreground">
-                        {Math.round((country.count / users.length) * 100)}%
-                      </div>
-                    </div>
+                  ))
+                ) : (
+                  <div className="text-center text-muted-foreground py-4">
+                    사용자 데이터를 수집 중입니다
                   </div>
-                ))}
+                )}
               </div>
             </CardContent>
           </Card>
@@ -310,17 +404,23 @@ export default function UserManagement() {
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {referrerStats.map((referrer) => (
-                  <div key={referrer.name} className="flex items-center justify-between">
-                    <div className="font-medium">{referrer.name}</div>
-                    <div className="text-right">
-                      <div className="font-bold">{referrer.count}명</div>
-                      <div className="text-xs text-muted-foreground">
-                        {referrer.percentage}%
+                {referrerStats.length > 0 ? (
+                  referrerStats.map((referrer) => (
+                    <div key={referrer.name} className="flex items-center justify-between">
+                      <div className="font-medium">{referrer.name}</div>
+                      <div className="text-right">
+                        <div className="font-bold">{referrer.count}명</div>
+                        <div className="text-xs text-muted-foreground">
+                          {referrer.percentage}%
+                        </div>
                       </div>
                     </div>
+                  ))
+                ) : (
+                  <div className="text-center text-muted-foreground py-4">
+                    유입 경로 데이터를 수집 중입니다
                   </div>
-                ))}
+                )}
               </div>
             </CardContent>
           </Card>
@@ -374,10 +474,10 @@ export default function UserManagement() {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-4">
                     <div className="flex-shrink-0">
-                      {user.avatar ? (
+                      {user.avatar_url ? (
                         <img
-                          src={user.avatar}
-                          alt={user.name}
+                          src={user.avatar_url}
+                          alt={user.full_name || user.email}
                           className="w-12 h-12 rounded-full"
                         />
                       ) : (
@@ -389,8 +489,8 @@ export default function UserManagement() {
 
                     <div className="flex-1">
                       <div className="flex items-center space-x-2 mb-1">
-                        <h3 className="font-semibold">{user.name}</h3>
-                        {user.isPremium && (
+                        <h3 className="font-semibold">{user.full_name || user.email.split('@')[0]}</h3>
+                        {user.is_premium && (
                           <Badge variant="secondary" className="bg-amber-100 text-amber-800">
                             <Star className="h-3 w-3 mr-1" />
                             프리미엄
@@ -405,27 +505,27 @@ export default function UserManagement() {
                         </div>
                         <div className="flex items-center space-x-1">
                           <span className="text-lg">{getCountryFlag(user.countryCode)}</span>
-                          <span>{user.country}</span>
+                          <span>{user.country || 'Unknown'}</span>
                         </div>
                         <div className="flex items-center space-x-1">
                           <Calendar className="h-3 w-3" />
-                          <span>가입: {new Date(user.joinDate).toLocaleDateString('ko-KR')}</span>
+                          <span>가입: {new Date(user.created_at).toLocaleDateString('ko-KR')}</span>
                         </div>
                       </div>
 
                       <div className="flex items-center space-x-4 text-sm text-muted-foreground mt-1">
                         <div className="flex items-center space-x-1">
                           <Eye className="h-3 w-3" />
-                          <span>조회수: {user.totalViews}</span>
+                          <span>조회수: {user.total_views}</span>
                         </div>
                         <div className="flex items-center space-x-1">
                           <MapPin className="h-3 w-3" />
-                          <span>유입: {user.referrer}</span>
+                          <span>유입: {user.referrer || 'Direct'}</span>
                         </div>
-                        {user.subscriptionDate && (
+                        {user.premium_expires_at && (
                           <div className="flex items-center space-x-1">
                             <CreditCard className="h-3 w-3" />
-                            <span>구독: {new Date(user.subscriptionDate).toLocaleDateString('ko-KR')}</span>
+                            <span>만료: {new Date(user.premium_expires_at).toLocaleDateString('ko-KR')}</span>
                           </div>
                         )}
                       </div>
@@ -435,13 +535,17 @@ export default function UserManagement() {
                   <div className="text-right">
                     <div className="text-sm text-muted-foreground">마지막 로그인</div>
                     <div className="font-medium">
-                      {new Date(user.lastLogin).toLocaleDateString('ko-KR')}
+                      {user.last_sign_in_at
+                        ? new Date(user.last_sign_in_at).toLocaleDateString('ko-KR')
+                        : '정보 없음'}
                     </div>
                     <div className="text-xs text-muted-foreground">
-                      {new Date(user.lastLogin).toLocaleTimeString('ko-KR', {
-                        hour: '2-digit',
-                        minute: '2-digit'
-                      })}
+                      {user.last_sign_in_at
+                        ? new Date(user.last_sign_in_at).toLocaleTimeString('ko-KR', {
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })
+                        : ''}
                     </div>
                   </div>
                 </div>
@@ -454,12 +558,20 @@ export default function UserManagement() {
           <Card>
             <CardContent className="p-12 text-center">
               <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-lg font-semibold mb-2">검색 결과가 없습니다</h3>
-              <p className="text-muted-foreground">다른 조건으로 검색해보세요.</p>
+              <h3 className="text-lg font-semibold mb-2">
+                {searchTerm || selectedCountry !== 'all' || selectedStatus !== 'all'
+                  ? '검색 결과가 없습니다'
+                  : '사용자가 없습니다'}
+              </h3>
+              <p className="text-muted-foreground">
+                {searchTerm || selectedCountry !== 'all' || selectedStatus !== 'all'
+                  ? '다른 조건으로 검색해보세요.'
+                  : '첫 번째 사용자가 가입하기를 기다리고 있습니다.'}
+              </p>
             </CardContent>
           </Card>
         )}
       </div>
     </div>
-  );
+  )
 }
