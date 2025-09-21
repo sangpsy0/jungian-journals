@@ -126,7 +126,8 @@ export default function HomePage() {
           keywords: processedKeywords,
           youtubeId: video.youtube_url ? extractYouTubeId(video.youtube_url) : undefined,
           youtubeUrl: video.youtube_url,
-          thumbnail: video.youtube_url ? `https://img.youtube.com/vi/${extractYouTubeId(video.youtube_url)}/maxresdefault.jpg` : "/placeholder.svg",
+          // 업로드된 이미지 우선, 없으면 YouTube 썸네일 사용
+          thumbnail: video.image_url || (video.youtube_url ? `https://img.youtube.com/vi/${extractYouTubeId(video.youtube_url)}/maxresdefault.jpg` : "/placeholder.svg"),
           addedDate: video.created_at,
           tab: video.category as TabType,
           type: "video" as const,

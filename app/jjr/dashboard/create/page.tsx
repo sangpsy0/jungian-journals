@@ -30,6 +30,9 @@ interface VideoContent {
   description: string;
   keywords: string[];
   isPremium: boolean;
+  image: File | null;
+  imagePreview: string | null;
+  imageUrl: string | null; // Custom image URL
 }
 
 interface BlogContent {
@@ -58,7 +61,10 @@ export default function CreateContent() {
     youtubeUrl: '',
     description: '',
     keywords: [],
-    isPremium: false
+    isPremium: false,
+    image: null,
+    imagePreview: null,
+    imageUrl: null
   });
 
   // Blog content state
@@ -130,7 +136,10 @@ export default function CreateContent() {
           youtubeUrl: videoData.youtube_url || '',
           description: videoData.description || '',
           keywords: processedKeywords,
-          isPremium: videoData.is_premium || false
+          isPremium: videoData.is_premium || false,
+          image: null,
+          imagePreview: videoData.image || null,
+          imageUrl: videoData.image || null
         });
         return;
       }
@@ -222,25 +231,43 @@ export default function CreateContent() {
     }
   };
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>, type: 'video' | 'blog' = 'blog') => {
     const file = e.target.files?.[0];
     if (file) {
-      setBlogContent(prev => ({
-        ...prev,
-        image: file,
-        imagePreview: URL.createObjectURL(file),
-        imageUrl: null // Clear external URL when new image is selected
-      }));
+      if (type === 'video') {
+        setVideoContent(prev => ({
+          ...prev,
+          image: file,
+          imagePreview: URL.createObjectURL(file),
+          imageUrl: null // Clear external URL when new image is selected
+        }));
+      } else {
+        setBlogContent(prev => ({
+          ...prev,
+          image: file,
+          imagePreview: URL.createObjectURL(file),
+          imageUrl: null // Clear external URL when new image is selected
+        }));
+      }
     }
   };
 
-  const handleImageUrlChange = (url: string) => {
-    setBlogContent(prev => ({
-      ...prev,
-      image: null,
-      imagePreview: url,
-      imageUrl: url
-    }));
+  const handleImageUrlChange = (url: string, type: 'video' | 'blog' = 'blog') => {
+    if (type === 'video') {
+      setVideoContent(prev => ({
+        ...prev,
+        image: null,
+        imagePreview: url,
+        imageUrl: url
+      }));
+    } else {
+      setBlogContent(prev => ({
+        ...prev,
+        image: null,
+        imagePreview: url,
+        imageUrl: url
+      }));
+    }
   };
 
   const getYoutubeThumbnail = (url: string) => {
@@ -310,16 +337,34 @@ export default function CreateContent() {
 
         if (isEditing && editId) {
           // 편집 모드: 기존 콘텐츠 업데이트
+          const updateData: any = {
+            title: videoContent.title,
+            description: videoContent.description,
+            youtube_url: videoContent.youtubeUrl,
+            category: videoContent.category,
+            keywords: JSON.stringify(videoContent.keywords),
+            is_premium: false, // 비디오는 항상 무료
+          };
+
+          // 이미지 처리
+          if (videoContent.image) {
+            // 새로운 파일이 업로드된 경우
+            console.log('비디오 이미지 파일 업로드 시작...');
+            const uploadedUrl = await uploadImage(videoContent.image);
+            if (uploadedUrl) {
+              updateData.image = uploadedUrl;
+              console.log('비디오 이미지 업로드 성공:', uploadedUrl);
+            }
+          } else if (videoContent.imageUrl && videoContent.imageUrl !== '' && videoContent.imageUrl !== videoContent.imagePreview) {
+            // 외부 URL이 새로 입력된 경우
+            updateData.image = videoContent.imageUrl;
+            console.log('비디오 외부 이미지 URL 사용:', videoContent.imageUrl);
+          }
+          // 이미지가 없으면 image 필드를 업데이트하지 않음 (YouTube 썸네일 사용)
+
           const { data, error } = await supabaseClient
             .from('video_content')
-            .update({
-              title: videoContent.title,
-              description: videoContent.description,
-              youtube_url: videoContent.youtubeUrl,
-              category: videoContent.category,
-              keywords: JSON.stringify(videoContent.keywords),
-              is_premium: false, // 비디오는 항상 무료
-            })
+            .update(updateData)
             .eq('id', editId);
 
           if (error) throw error;
@@ -327,17 +372,35 @@ export default function CreateContent() {
           alert('비디오 콘텐츠가 성공적으로 수정되었습니다!');
         } else {
           // 신규 생성 모드
+          const insertData: any = {
+            title: videoContent.title,
+            description: videoContent.description,
+            youtube_url: videoContent.youtubeUrl,
+            category: videoContent.category,
+            keywords: JSON.stringify(videoContent.keywords),
+            is_premium: false, // 비디오는 항상 무료
+            created_at: new Date().toISOString()
+          };
+
+          // 이미지 처리
+          if (videoContent.image) {
+            // 파일이 업로드된 경우
+            console.log('비디오 이미지 파일 업로드 시작...');
+            const uploadedUrl = await uploadImage(videoContent.image);
+            if (uploadedUrl) {
+              insertData.image = uploadedUrl;
+              console.log('비디오 이미지 업로드 성공:', uploadedUrl);
+            }
+          } else if (videoContent.imageUrl && videoContent.imageUrl !== '') {
+            // 외부 URL이 입력된 경우
+            insertData.image = videoContent.imageUrl;
+            console.log('비디오 외부 이미지 URL 사용:', videoContent.imageUrl);
+          }
+          // 이미지가 없으면 YouTube 썸네일을 자동으로 사용
+
           const { data, error } = await supabaseClient
             .from('video_content')
-            .insert([{
-              title: videoContent.title,
-              description: videoContent.description,
-              youtube_url: videoContent.youtubeUrl,
-              category: videoContent.category,
-              keywords: JSON.stringify(videoContent.keywords),
-              is_premium: false, // 비디오는 항상 무료
-              created_at: new Date().toISOString()
-            }]);
+            .insert([insertData]);
 
           if (error) throw error;
           console.log('비디오 콘텐츠 저장 성공:', data);
@@ -584,6 +647,62 @@ export default function CreateContent() {
                       />
                     </div>
 
+                    <div>
+                      <label className="text-sm font-medium mb-2 block">표지 이미지 (선택사항)</label>
+                      <div className="space-y-3">
+                        <div className="border-2 border-dashed border-input rounded-lg p-4">
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => handleImageUpload(e, 'video')}
+                            className="hidden"
+                            id="video-image-upload"
+                          />
+                          <label
+                            htmlFor="video-image-upload"
+                            className="flex flex-col items-center justify-center cursor-pointer"
+                          >
+                            {videoContent.imagePreview ? (
+                              <img
+                                src={videoContent.imagePreview}
+                                alt="표지 이미지"
+                                className="w-full h-32 object-cover rounded"
+                              />
+                            ) : (
+                              <>
+                                <Upload className="h-8 w-8 text-muted-foreground mb-2" />
+                                <span className="text-sm text-muted-foreground">
+                                  이미지를 업로드하거나 드래그해서 놓으세요
+                                </span>
+                              </>
+                            )}
+                          </label>
+                        </div>
+
+                        {videoContent.imagePreview && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setVideoContent(prev => ({
+                              ...prev,
+                              image: null,
+                              imagePreview: null,
+                              imageUrl: null
+                            }))}
+                            className="w-full"
+                          >
+                            <X className="h-4 w-4 mr-1" />
+                            이미지 제거
+                          </Button>
+                        )}
+
+                        <div className="text-xs text-muted-foreground">
+                          이미지를 업로드하지 않으면 YouTube 썸네일이 자동으로 사용됩니다.
+                        </div>
+                      </div>
+                    </div>
+
                     {/* 비디오는 항상 무료 - isPremium을 false로 고정 */}
                   </CardContent>
                 </Card>
@@ -768,12 +887,12 @@ export default function CreateContent() {
               <CardContent>
                 {contentType === 'video' ? (
                   <div className="space-y-4">
-                    {/* YouTube 썸네일 */}
-                    {videoContent.youtubeUrl && (
+                    {/* 이미지 미리보기 - 업로드된 이미지 우선, 없으면 YouTube 썸네일 */}
+                    {(videoContent.imagePreview || videoContent.youtubeUrl) && (
                       <div className="aspect-video bg-gray-100 rounded-lg overflow-hidden">
                         <img
-                          src={getYoutubeThumbnail(videoContent.youtubeUrl) || ''}
-                          alt="YouTube 썸네일"
+                          src={videoContent.imagePreview || getYoutubeThumbnail(videoContent.youtubeUrl) || ''}
+                          alt={videoContent.imagePreview ? "업로드된 이미지" : "YouTube 썸네일"}
                           className="w-full h-full object-cover"
                           onError={(e) => {
                             (e.target as HTMLImageElement).src = '/placeholder-video.jpg';
