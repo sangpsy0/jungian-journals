@@ -96,11 +96,8 @@ export default function ContentManagement() {
             }
           }
 
-          // 콘텐츠 생성일 기반으로 더 현실적인 조회수 계산
-          const daysSinceCreated = Math.floor((Date.now() - new Date(video.created_at).getTime()) / (1000 * 60 * 60 * 24));
-          const baseViews = Math.max(1, daysSinceCreated * 2); // 하루에 평균 2회 조회
-          const randomMultiplier = Math.random() * 2 + 0.5; // 0.5 ~ 2.5 배수
-          const calculatedViews = Math.floor(baseViews * randomMultiplier);
+          // 실제 조회수는 0으로 시작 (추후 조회수 추적 기능 추가 필요)
+          const calculatedViews = 0;
 
           return {
             id: video.id,
@@ -111,13 +108,9 @@ export default function ContentManagement() {
             addedDate: video.created_at,
             isPremium: video.is_premium || false,
             keywords: processedKeywords,
-            dailyViews: Array.from({length: 7}, (_, i) => {
-              // 최근 7일간의 조회수를 현실적으로 분배
-              const dayFactor = 7 - i; // 최신일수록 높은 가중치
-              return Math.floor((calculatedViews / 30) * dayFactor * (Math.random() * 0.5 + 0.75));
-            }),
-            avgWatchTime: video.isPremium ? '12:45' : '6:30',
-            completionRate: video.isPremium ? Math.floor(Math.random() * 20) + 75 : Math.floor(Math.random() * 30) + 60
+            dailyViews: Array.from({length: 7}, () => 0), // 실제 일별 조회수 추적 필요
+            avgWatchTime: '0:00', // 실제 시청 시간 추적 필요
+            completionRate: 0 // 실제 완주율 추적 필요
           };
         });
 
@@ -137,11 +130,8 @@ export default function ContentManagement() {
             }
           }
 
-          // 콘텐츠 생성일 기반으로 더 현실적인 조회수 계산
-          const daysSinceCreated = Math.floor((Date.now() - new Date(blog.created_at).getTime()) / (1000 * 60 * 60 * 24));
-          const baseViews = Math.max(1, daysSinceCreated * 1.5); // 블로그는 하루에 평균 1.5회 조회
-          const randomMultiplier = Math.random() * 2 + 0.5; // 0.5 ~ 2.5 배수
-          const calculatedViews = Math.floor(baseViews * randomMultiplier);
+          // 실제 조회수는 0으로 시작 (추후 조회수 추적 기능 추가 필요)
+          const calculatedViews = 0;
 
           return {
             id: blog.id,
@@ -152,12 +142,8 @@ export default function ContentManagement() {
             addedDate: blog.created_at,
             isPremium: blog.is_premium || false,
             keywords: processedKeywords,
-            dailyViews: Array.from({length: 7}, (_, i) => {
-              // 최근 7일간의 조회수를 현실적으로 분배
-              const dayFactor = 7 - i; // 최신일수록 높은 가중치
-              return Math.floor((calculatedViews / 30) * dayFactor * (Math.random() * 0.5 + 0.75));
-            }),
-            readingTime: blog.isPremium ? '8분 읽기' : '5분 읽기'
+            dailyViews: Array.from({length: 7}, () => 0), // 실제 일별 조회수 추적 필요
+            readingTime: '0분 읽기' // 실제 읽기 시간 계산 필요
           };
         });
 
@@ -375,7 +361,7 @@ export default function ContentManagement() {
                 {contents.reduce((sum, c) => sum + c.dailyViews[c.dailyViews.length - 1], 0)}
               </div>
               <p className="text-xs text-muted-foreground">
-                어제 대비 +12%
+                실시간 집계
               </p>
             </CardContent>
           </Card>

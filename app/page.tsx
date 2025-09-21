@@ -315,9 +315,14 @@ export default function HomePage() {
           <div className="container mx-auto px-4 py-12">
             <div className="text-center max-w-4xl mx-auto">
               <h2 className="text-4xl font-bold text-gray-900 mb-4">Blog by AI</h2>
-              <p className="text-xl text-gray-700 mb-8">
-                AI is far smarter than us. Don't worry. This blog writes perfectly evidence-based articles without any
-                hallucinations.
+              <p className="text-lg text-gray-700 mb-6">
+                AI is now far smarter than us humans. We cannot possibly store hundreds of books and tens of thousands of papers written by Jung and other Jungian scholars in our heads. Sadly, we must acknowledge the tide of the times.
+              </p>
+              <p className="text-lg text-gray-700 mb-6">
+                This blog writes posts based solely on perfectly reliable sources derived from the above books and papers, and I possess the technology to develop such systems. (It's also known as a kind of RAG system.) Therefore, there are no hallucinations, so don't worry.
+              </p>
+              <p className="text-lg text-gray-700">
+                I hope this article is helpful to you.
               </p>
             </div>
           </div>
