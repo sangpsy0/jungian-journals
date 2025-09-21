@@ -138,8 +138,8 @@ export default function CreateContent() {
           keywords: processedKeywords,
           isPremium: videoData.is_premium || false,
           image: null,
-          imagePreview: videoData.image || null,
-          imageUrl: videoData.image || null
+          imagePreview: videoData.image_url || null,  // image → image_url로 수정
+          imageUrl: videoData.image_url || null  // image → image_url로 수정
         });
         return;
       }
@@ -352,15 +352,15 @@ export default function CreateContent() {
             console.log('비디오 이미지 파일 업로드 시작...');
             const uploadedUrl = await uploadImage(videoContent.image);
             if (uploadedUrl) {
-              updateData.image = uploadedUrl;
+              updateData.image_url = uploadedUrl;  // image → image_url로 수정
               console.log('비디오 이미지 업로드 성공:', uploadedUrl);
             }
           } else if (videoContent.imageUrl && videoContent.imageUrl !== '' && videoContent.imageUrl !== videoContent.imagePreview) {
             // 외부 URL이 새로 입력된 경우
-            updateData.image = videoContent.imageUrl;
+            updateData.image_url = videoContent.imageUrl;  // image → image_url로 수정
             console.log('비디오 외부 이미지 URL 사용:', videoContent.imageUrl);
           }
-          // 이미지가 없으면 image 필드를 업데이트하지 않음 (YouTube 썸네일 사용)
+          // 이미지가 없으면 image_url 필드를 업데이트하지 않음 (YouTube 썸네일 사용)
 
           const { data, error } = await supabaseClient
             .from('video_content')
@@ -388,12 +388,12 @@ export default function CreateContent() {
             console.log('비디오 이미지 파일 업로드 시작...');
             const uploadedUrl = await uploadImage(videoContent.image);
             if (uploadedUrl) {
-              insertData.image = uploadedUrl;
+              insertData.image_url = uploadedUrl;  // image → image_url로 수정
               console.log('비디오 이미지 업로드 성공:', uploadedUrl);
             }
           } else if (videoContent.imageUrl && videoContent.imageUrl !== '') {
             // 외부 URL이 입력된 경우
-            insertData.image = videoContent.imageUrl;
+            insertData.image_url = videoContent.imageUrl;  // image → image_url로 수정
             console.log('비디오 외부 이미지 URL 사용:', videoContent.imageUrl);
           }
           // 이미지가 없으면 YouTube 썸네일을 자동으로 사용
