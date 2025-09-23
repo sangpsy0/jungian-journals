@@ -3,11 +3,17 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from './auth-provider';
 import { getRecommendations, getPersonalizedRecommendations } from '@/lib/recommendations';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Play, Calendar, Lock } from 'lucide-react';
+import { Play, Calendar, Lock, Tag, Star, Info } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import Image from 'next/image';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 interface Video {
   id: string;
@@ -43,11 +49,13 @@ function parseKeywords(keywords: string[] | string): string[] {
 
 interface VideoRecommendationsProps {
   currentVideoId: string;
+  currentVideo?: Video;
   onVideoSelect: (video: Video) => void;
 }
 
 export function VideoRecommendations({
   currentVideoId,
+  currentVideo,
   onVideoSelect
 }: VideoRecommendationsProps) {
   const { user } = useAuth();
@@ -112,87 +120,120 @@ export function VideoRecommendations({
     <div className="mt-8 border-t pt-8">
       <div className="flex items-center justify-between mb-6">
         <h3 className="text-lg font-semibold">
-          {user ? '맞춤 추천 콘텐츠' : '관련 콘텐츠'}
+          {user ? 'Personalized Recommendations' : 'Related Content'}
         </h3>
         {user && (
           <Badge variant="secondary" className="text-xs">
-            AI 추천
+            AI Powered
           </Badge>
         )}
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {recommendations.map((video) => (
-          <Card
-            key={video.id}
-            className="overflow-hidden cursor-pointer transition-all hover:shadow-lg hover:-translate-y-1"
-            onClick={() => onVideoSelect(video)}
-          >
-            <div className="relative aspect-video bg-muted">
-              {video.image_url || video.thumbnail ? (
-                <Image
-                  src={video.image_url || video.thumbnail}
-                  alt={video.title}
-                  fill
-                  className="object-cover"
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/20 to-primary/10">
-                  <Play className="h-12 w-12 text-primary/40" />
-                </div>
-              )}
+      <TooltipProvider>
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {recommendations.map((video) => {
+            const isPremium = video.is_premium || video.isPremium;
+            const keywords = parseKeywords(video.keywords);
 
-              {(video.is_premium || video.isPremium) && (
-                <div className="absolute top-2 right-2">
-                  <Badge className="bg-amber-500 text-white gap-1">
-                    <Lock className="h-3 w-3" />
-                    프리미엄
-                  </Badge>
-                </div>
-              )}
+            // Generate recommendation reason
+            const getRecommendationReason = () => {
+              const reasons = [];
+              if (video.category === currentVideo?.category || video.tab === currentVideo?.tab) {
+                reasons.push(`Same category: ${video.category || video.tab}`);
+              }
+              const sharedKeywords = keywords.filter(k =>
+                parseKeywords(currentVideo?.keywords || []).includes(k)
+              );
+              if (sharedKeywords.length > 0) {
+                reasons.push(`Shared keywords: ${sharedKeywords.slice(0, 3).join(', ')}`);
+              }
+              if (video.view_count && video.view_count > 10) {
+                reasons.push(`Popular content (${video.view_count} views)`);
+              }
+              const daysSinceAdded = Math.floor((Date.now() - new Date(video.created_at || video.added_date || Date.now()).getTime()) / (1000 * 60 * 60 * 24));
+              if (daysSinceAdded <= 7) {
+                reasons.push('Recently added');
+              }
+              return reasons.length > 0 ? reasons.join(' • ') : 'Related content based on AI analysis';
+            };
 
-              <div className="absolute bottom-2 left-2">
-                <Badge className="bg-background/90 text-foreground">
-                  {video.category || video.tab || '일반'}
-                </Badge>
-              </div>
-            </div>
-
-            <CardContent className="p-4">
-              <h4 className="font-medium line-clamp-2 mb-2">
-                {video.title}
-              </h4>
-
-              <p className="text-sm text-muted-foreground line-clamp-2 mb-3">
-                {video.summary}
-              </p>
-
-              <div className="flex items-center justify-between text-xs text-muted-foreground">
-                <div className="flex items-center gap-1">
-                  <Calendar className="h-3 w-3" />
-                  {new Date(video.created_at || video.added_date || video.addedDate || Date.now()).toLocaleDateString('ko-KR')}
-                </div>
-
-                <div className="flex gap-1">
-                  {parseKeywords(video.keywords).slice(0, 2).map((keyword, idx) => (
-                    <Badge key={idx} variant="outline" className="text-xs px-1 py-0">
-                      {keyword}
-                    </Badge>
-                  ))}
-                  {parseKeywords(video.keywords).length > 2 && (
-                    <span className="text-xs">+{parseKeywords(video.keywords).length - 2}</span>
-                  )}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+            return (
+              <Tooltip key={video.id}>
+                <TooltipTrigger asChild>
+                  <Card className="group transition-all duration-200 hover:shadow-lg hover:scale-[1.02] cursor-pointer">
+                    <div className="relative overflow-hidden rounded-t-lg" onClick={() => onVideoSelect(video)}>
+                      <img
+                        src={video.image_url || video.thumbnail || "/placeholder.svg"}
+                        alt={video.title}
+                        className="w-full h-48 object-cover transition-transform duration-200 group-hover:scale-105"
+                      />
+                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-200 flex items-center justify-center">
+                        <Play className="h-12 w-12 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+                      </div>
+                      {isPremium && (
+                        <Badge className="absolute top-2 left-2 bg-amber-500 text-white">Premium</Badge>
+                      )}
+                      <div className="absolute top-2 right-2">
+                        <Info className="h-4 w-4 text-white/80 opacity-0 group-hover:opacity-100 transition-opacity" />
+                      </div>
+                    </div>
+                    <CardHeader className="pb-2" onClick={() => onVideoSelect(video)}>
+                      <CardTitle className="text-lg line-clamp-2 text-balance">{video.title}</CardTitle>
+                      <CardDescription className="line-clamp-2 text-pretty">
+                        {video.summary || video.description || ''}
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="pt-0" onClick={() => onVideoSelect(video)}>
+                      <div className="flex flex-wrap gap-1 mb-3">
+                        {keywords.slice(0, 3).map((keyword) => (
+                          <Badge
+                            key={keyword}
+                            variant="secondary"
+                            className="text-xs"
+                          >
+                            <Tag className="h-3 w-3 mr-1" />
+                            {keyword}
+                          </Badge>
+                        ))}
+                        {keywords.length > 3 && (
+                          <Badge variant="outline" className="text-xs">
+                            +{keywords.length - 3}
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="flex items-center justify-between text-xs text-muted-foreground">
+                        <div className="flex items-center">
+                          <Calendar className="h-3 w-3 mr-1" />
+                          {new Date(video.created_at || video.added_date || video.addedDate || Date.now()).toLocaleDateString("en-US")}
+                        </div>
+                        {isPremium ? (
+                          <Badge variant="secondary" className="bg-amber-100 text-amber-800 text-xs">
+                            <Star className="h-2 w-2 mr-1" />
+                            Premium
+                          </Badge>
+                        ) : (
+                          <Badge variant="secondary" className="bg-green-100 text-green-800 text-xs">
+                            <span className="inline-block w-2 h-2 bg-green-500 rounded-full mr-1"></span>
+                            Free
+                          </Badge>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </TooltipTrigger>
+                <TooltipContent className="max-w-xs">
+                  <p className="text-sm">{getRecommendationReason()}</p>
+                </TooltipContent>
+              </Tooltip>
+            );
+          })}
+        </div>
+      </TooltipProvider>
 
       {!user && (
         <div className="mt-6 p-4 bg-muted rounded-lg text-center">
           <p className="text-sm text-muted-foreground">
-            로그인하면 맞춤 AI 추천을 받을 수 있습니다
+            Sign in to get personalized AI recommendations
           </p>
         </div>
       )}

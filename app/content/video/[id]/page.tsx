@@ -6,20 +6,35 @@ import { ArrowLeft, Calendar, Tag, Play } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { supabase } from "@/lib/supabase"
+import { VideoRecommendations } from "@/components/video-recommendations"
+import { useAuth } from "@/components/auth-provider"
 
 interface VideoContent {
   id: string
   title: string
-  description: string
-  youtube_url: string
+  summary?: string
+  description?: string
+  youtube_url?: string
+  youtubeId?: string
+  youtube_id?: string
   category: string
-  keywords: string[]
+  tab?: string
+  keywords: string[] | string
   created_at: string
+  added_date?: string
+  addedDate?: string
+  type?: string
+  is_premium?: boolean
+  isPremium?: boolean
+  image_url?: string
+  thumbnail?: string
+  view_count?: number
 }
 
 export default function VideoPage() {
   const params = useParams()
   const router = useRouter()
+  const { user } = useAuth()
   const [video, setVideo] = useState<VideoContent | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -50,8 +65,17 @@ export default function VideoPage() {
 
         setVideo({
           ...data,
-          keywords: processedKeywords
+          keywords: processedKeywords,
+          type: 'video'
         })
+
+        // 로그인한 사용자라면 시청 기록 저장
+        if (user?.id) {
+          await supabase.rpc('record_video_view', {
+            p_user_id: user.id,
+            p_video_id: data.id
+          }).catch(err => console.log('시청 기록 저장 실패:', err))
+        }
       } catch (error) {
         console.error('Error fetching video:', error)
       } finally {
@@ -99,7 +123,11 @@ export default function VideoPage() {
     )
   }
 
-  const youtubeId = extractYouTubeId(video.youtube_url)
+  const youtubeId = video.youtube_id || video.youtubeId || (video.youtube_url ? extractYouTubeId(video.youtube_url) : '')
+
+  const handleVideoSelect = (newVideo: VideoContent) => {
+    router.push(`/content/video/${newVideo.id}`)
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -139,7 +167,7 @@ export default function VideoPage() {
 
             {/* Keywords */}
             <div className="flex flex-wrap gap-2 mb-6">
-              {video.keywords.map((keyword) => (
+              {(Array.isArray(video.keywords) ? video.keywords : []).map((keyword) => (
                 <Badge key={keyword} variant="secondary">
                   <Tag className="h-3 w-3 mr-1" />
                   {keyword}
@@ -170,13 +198,20 @@ export default function VideoPage() {
 
           {/* Video Description */}
           {video.description && (
-            <div className="prose prose-gray max-w-none">
+            <div className="prose prose-gray max-w-none mb-12">
               <h2 className="text-xl font-semibold mb-4">설명</h2>
               <p className="text-muted-foreground whitespace-pre-wrap">
                 {video.description}
               </p>
             </div>
           )}
+
+          {/* 추천 콘텐츠 섹션 */}
+          <VideoRecommendations
+            currentVideoId={video.id}
+            currentVideo={video}
+            onVideoSelect={handleVideoSelect}
+          />
         </div>
       </main>
     </div>

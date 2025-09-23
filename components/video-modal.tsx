@@ -148,6 +148,7 @@ export function VideoModal({ video, isOpen, onClose }: VideoModalProps) {
           {/* 추천 콘텐츠 섹션 - 로그인한 사용자에게만 표시 */}
           <VideoRecommendations
             currentVideoId={currentVideo.id}
+            currentVideo={currentVideo}
             onVideoSelect={handleVideoSelect}
           />
         </div>
