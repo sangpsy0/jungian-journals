@@ -10,6 +10,7 @@ interface Video {
   tab?: string; // 하위 호환성을 위해 유지
   youtube_id?: string;
   youtubeId?: string; // 하위 호환성
+  youtube_url?: string; // YouTube URL 추가
   thumbnail?: string;  // Optional로 변경
   created_at?: string;  // Supabase 기본 타임스탬프
   added_date?: string;  // 커스텀 필드 (있을 경우)
@@ -20,15 +21,38 @@ interface Video {
   content?: string;
   image_url?: string;
   view_count?: number;
+  description?: string; // 설명 필드 추가
 }
 
-// YouTube 썸네일 URL 생성 헬퍼 함수
+// YouTube URL에서 Video ID 추출하는 함수
+function extractYouTubeId(url: string): string {
+  const regExp = /^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(watch\?))\??v?=?([^#&?]*).*/
+  const match = url.match(regExp)
+  return (match && match[7].length === 11) ? match[7] : ''
+}
+
+// YouTube 썸네일 URL 생성 헬퍼 함수 (홈화면과 동일하게)
 function getYouTubeThumbnail(video: Video): string {
+  // 업로드된 이미지 우선
+  if (video.image_url) {
+    return video.image_url;
+  }
+
+  // YouTube URL에서 ID 추출하여 썸네일 생성
+  if (video.youtube_url) {
+    const youtubeId = extractYouTubeId(video.youtube_url);
+    if (youtubeId) {
+      return `https://img.youtube.com/vi/${youtubeId}/maxresdefault.jpg`;
+    }
+  }
+
+  // youtube_id 필드 확인 (fallback)
   const youtubeId = video.youtube_id || video.youtubeId;
   if (youtubeId) {
-    return `https://img.youtube.com/vi/${youtubeId}/mqdefault.jpg`;
+    return `https://img.youtube.com/vi/${youtubeId}/maxresdefault.jpg`;
   }
-  return video.image_url || video.thumbnail || '/placeholder.svg';
+
+  return video.thumbnail || '/placeholder.svg';
 }
 
 // keywords를 배열로 변환하는 헬퍼 함수

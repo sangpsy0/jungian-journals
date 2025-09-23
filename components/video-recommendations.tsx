@@ -179,13 +179,7 @@ export function VideoRecommendations({
                   <Card className="group transition-all duration-200 hover:shadow-lg hover:scale-[1.02] cursor-pointer">
                     <div className="relative overflow-hidden rounded-t-lg" onClick={() => onVideoSelect(video)}>
                       <img
-                        src={
-                          video.image_url ||
-                          video.thumbnail ||
-                          (video.youtube_id || video.youtubeId ?
-                            `https://img.youtube.com/vi/${video.youtube_id || video.youtubeId}/mqdefault.jpg` :
-                            "/placeholder.svg")
-                        }
+                        src={video.thumbnail || "/placeholder.svg"}
                         alt={video.title}
                         className="w-full h-48 object-cover transition-transform duration-200 group-hover:scale-105"
                       />
@@ -243,8 +237,18 @@ export function VideoRecommendations({
                     </CardContent>
                   </Card>
                 </TooltipTrigger>
-                <TooltipContent className="max-w-xs">
-                  <p className="text-sm">{getRecommendationReason()}</p>
+                <TooltipContent className="max-w-sm p-3 space-y-2">
+                  <div className="space-y-1">
+                    <p className="font-semibold text-sm">{video.title}</p>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      {video.summary || video.description || 'No description available'}
+                    </p>
+                  </div>
+                  <div className="border-t pt-2">
+                    <p className="text-xs italic text-muted-foreground">
+                      💡 Why recommended: {getRecommendationReason()}
+                    </p>
+                  </div>
                 </TooltipContent>
               </Tooltip>
             );
