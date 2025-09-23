@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { supabase } from "@/lib/supabase"
 import { VideoRecommendations } from "@/components/video-recommendations"
 import { useAuth } from "@/components/auth-provider"
+import GoogleLoginButton from "@/components/google-login-button"
 
 interface VideoContent {
   id: string
@@ -143,8 +144,27 @@ export default function VideoPage() {
               <ArrowLeft className="h-4 w-4" />
               <span>홈으로</span>
             </Button>
-            <div className="text-sm text-muted-foreground">
-              {video.category}
+            <div className="flex items-center gap-4">
+              <div className="text-sm text-muted-foreground">
+                {video.category}
+              </div>
+              <div className="flex items-center space-x-4">
+                {user && (
+                  <div className="flex items-center space-x-3">
+                    <img
+                      src={user.user_metadata?.avatar_url || "/placeholder.svg"}
+                      alt={user.user_metadata?.full_name || "User"}
+                      className="w-8 h-8 rounded-full"
+                    />
+                    <div className="hidden md:block">
+                      <span className="text-sm font-medium">
+                        {user.user_metadata?.full_name || user.email}
+                      </span>
+                    </div>
+                  </div>
+                )}
+                <GoogleLoginButton />
+              </div>
             </div>
           </div>
         </div>

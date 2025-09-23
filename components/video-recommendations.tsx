@@ -174,83 +174,83 @@ export function VideoRecommendations({
             };
 
             return (
-              <Tooltip key={video.id}>
-                <TooltipTrigger asChild>
-                  <Card className="group transition-all duration-200 hover:shadow-lg hover:scale-[1.02] cursor-pointer">
-                    <div className="relative overflow-hidden rounded-t-lg" onClick={() => onVideoSelect(video)}>
-                      <img
-                        src={video.thumbnail || "/placeholder.svg"}
-                        alt={video.title}
-                        className="w-full h-48 object-cover transition-transform duration-200 group-hover:scale-105"
-                      />
-                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-200 flex items-center justify-center">
-                        <Play className="h-12 w-12 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
-                      </div>
-                      {isPremium && (
-                        <Badge className="absolute top-2 left-2 bg-amber-500 text-white">Premium</Badge>
-                      )}
+              <Card key={video.id} className="group transition-all duration-200 hover:shadow-lg hover:scale-[1.02] cursor-pointer">
+                <div className="relative overflow-hidden rounded-t-lg" onClick={() => onVideoSelect(video)}>
+                  <img
+                    src={video.thumbnail || "/placeholder.svg"}
+                    alt={video.title}
+                    className="w-full h-48 object-cover transition-transform duration-200 group-hover:scale-105"
+                  />
+                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-200 flex items-center justify-center">
+                    <Play className="h-12 w-12 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+                  </div>
+                  {isPremium && (
+                    <Badge className="absolute top-2 left-2 bg-amber-500 text-white">Premium</Badge>
+                  )}
+                  <Tooltip>
+                    <TooltipTrigger asChild>
                       <div className="absolute top-2 right-2">
-                        <Info className="h-4 w-4 text-white/80 opacity-0 group-hover:opacity-100 transition-opacity" />
+                        <Info className="h-5 w-5 text-white bg-black/50 rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity cursor-help" />
                       </div>
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-sm p-3 space-y-2">
+                      <div className="space-y-1">
+                        <p className="font-semibold text-sm">{video.title}</p>
+                        <p className="text-xs text-muted-foreground leading-relaxed">
+                          {video.summary || video.description || 'No description available'}
+                        </p>
+                      </div>
+                      <div className="border-t pt-2">
+                        <p className="text-xs italic text-muted-foreground">
+                          💡 Why recommended: {getRecommendationReason()}
+                        </p>
+                      </div>
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
+                <CardHeader className="pb-2" onClick={() => onVideoSelect(video)}>
+                  <CardTitle className="text-lg line-clamp-2 text-balance">{video.title}</CardTitle>
+                  <CardDescription className="line-clamp-2 text-pretty">
+                    {video.summary || video.description || ''}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="pt-0" onClick={() => onVideoSelect(video)}>
+                  <div className="flex flex-wrap gap-1 mb-3">
+                    {keywords.slice(0, 3).map((keyword) => (
+                      <Badge
+                        key={keyword}
+                        variant="secondary"
+                        className="text-xs"
+                      >
+                        <Tag className="h-3 w-3 mr-1" />
+                        {keyword}
+                      </Badge>
+                    ))}
+                    {keywords.length > 3 && (
+                      <Badge variant="outline" className="text-xs">
+                        +{keywords.length - 3}
+                      </Badge>
+                    )}
+                  </div>
+                  <div className="flex items-center justify-between text-xs text-muted-foreground">
+                    <div className="flex items-center">
+                      <Calendar className="h-3 w-3 mr-1" />
+                      {new Date(video.created_at || video.added_date || video.addedDate || Date.now()).toLocaleDateString("en-US")}
                     </div>
-                    <CardHeader className="pb-2" onClick={() => onVideoSelect(video)}>
-                      <CardTitle className="text-lg line-clamp-2 text-balance">{video.title}</CardTitle>
-                      <CardDescription className="line-clamp-2 text-pretty">
-                        {video.summary || video.description || ''}
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent className="pt-0" onClick={() => onVideoSelect(video)}>
-                      <div className="flex flex-wrap gap-1 mb-3">
-                        {keywords.slice(0, 3).map((keyword) => (
-                          <Badge
-                            key={keyword}
-                            variant="secondary"
-                            className="text-xs"
-                          >
-                            <Tag className="h-3 w-3 mr-1" />
-                            {keyword}
-                          </Badge>
-                        ))}
-                        {keywords.length > 3 && (
-                          <Badge variant="outline" className="text-xs">
-                            +{keywords.length - 3}
-                          </Badge>
-                        )}
-                      </div>
-                      <div className="flex items-center justify-between text-xs text-muted-foreground">
-                        <div className="flex items-center">
-                          <Calendar className="h-3 w-3 mr-1" />
-                          {new Date(video.created_at || video.added_date || video.addedDate || Date.now()).toLocaleDateString("en-US")}
-                        </div>
-                        {isPremium ? (
-                          <Badge variant="secondary" className="bg-amber-100 text-amber-800 text-xs">
-                            <Star className="h-2 w-2 mr-1" />
-                            Premium
-                          </Badge>
-                        ) : (
-                          <Badge variant="secondary" className="bg-green-100 text-green-800 text-xs">
-                            <span className="inline-block w-2 h-2 bg-green-500 rounded-full mr-1"></span>
-                            Free
-                          </Badge>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                </TooltipTrigger>
-                <TooltipContent className="max-w-sm p-3 space-y-2">
-                  <div className="space-y-1">
-                    <p className="font-semibold text-sm">{video.title}</p>
-                    <p className="text-xs text-muted-foreground leading-relaxed">
-                      {video.summary || video.description || 'No description available'}
-                    </p>
+                    {isPremium ? (
+                      <Badge variant="secondary" className="bg-amber-100 text-amber-800 text-xs">
+                        <Star className="h-2 w-2 mr-1" />
+                        Premium
+                      </Badge>
+                    ) : (
+                      <Badge variant="secondary" className="bg-green-100 text-green-800 text-xs">
+                        <span className="inline-block w-2 h-2 bg-green-500 rounded-full mr-1"></span>
+                        Free
+                      </Badge>
+                    )}
                   </div>
-                  <div className="border-t pt-2">
-                    <p className="text-xs italic text-muted-foreground">
-                      💡 Why recommended: {getRecommendationReason()}
-                    </p>
-                  </div>
-                </TooltipContent>
-              </Tooltip>
+                </CardContent>
+              </Card>
             );
           })}
         </div>

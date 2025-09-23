@@ -11,7 +11,7 @@ interface Video {
   youtube_id?: string;
   youtubeId?: string; // 하위 호환성
   youtube_url?: string; // YouTube URL 추가
-  thumbnail?: string;  // Optional로 변경
+  thumbnail: string;  // 썸네일은 항상 생성됨
   created_at?: string;  // Supabase 기본 타임스탬프
   added_date?: string;  // 커스텀 필드 (있을 경우)
   addedDate?: string;   // 하위 호환성
@@ -24,35 +24,11 @@ interface Video {
   description?: string; // 설명 필드 추가
 }
 
-// YouTube URL에서 Video ID 추출하는 함수
+// YouTube URL에서 Video ID 추출하는 함수 (홈화면과 동일)
 function extractYouTubeId(url: string): string {
   const regExp = /^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(watch\?))\??v?=?([^#&?]*).*/
   const match = url.match(regExp)
   return (match && match[7].length === 11) ? match[7] : ''
-}
-
-// YouTube 썸네일 URL 생성 헬퍼 함수 (홈화면과 동일하게)
-function getYouTubeThumbnail(video: Video): string {
-  // 업로드된 이미지 우선
-  if (video.image_url) {
-    return video.image_url;
-  }
-
-  // YouTube URL에서 ID 추출하여 썸네일 생성
-  if (video.youtube_url) {
-    const youtubeId = extractYouTubeId(video.youtube_url);
-    if (youtubeId) {
-      return `https://img.youtube.com/vi/${youtubeId}/maxresdefault.jpg`;
-    }
-  }
-
-  // youtube_id 필드 확인 (fallback)
-  const youtubeId = video.youtube_id || video.youtubeId;
-  if (youtubeId) {
-    return `https://img.youtube.com/vi/${youtubeId}/maxresdefault.jpg`;
-  }
-
-  return video.thumbnail || '/placeholder.svg';
 }
 
 // keywords를 배열로 변환하는 헬퍼 함수
@@ -163,13 +139,20 @@ export async function getKeywordBasedRecommendations(
       return [];
     }
 
-    // 각 비디오에 대해 추천 점수 계산
-    const scoredVideos = allVideos.map(video => ({
-      ...video,
-      keywords: parseKeywords(video.keywords), // keywords를 배열로 변환
-      thumbnail: getYouTubeThumbnail(video), // 썸네일 URL 생성
-      score: calculateRecommendationScore(currentVideo, video)
-    }));
+    // 각 비디오에 대해 추천 점수 계산 및 썸네일 생성 (홈화면과 동일)
+    const scoredVideos = allVideos.map(video => {
+      // 홈화면과 완전히 동일한 썸네일 로직
+      const thumbnail = video.image_url ||
+        (video.youtube_url ? `https://img.youtube.com/vi/${extractYouTubeId(video.youtube_url)}/maxresdefault.jpg` : "/placeholder.svg");
+
+      return {
+        ...video,
+        keywords: parseKeywords(video.keywords), // keywords를 배열로 변환
+        thumbnail: thumbnail, // 생성된 썸네일 URL
+        youtube_url: video.youtube_url, // youtube_url 필드 포함
+        score: calculateRecommendationScore(currentVideo, video)
+      };
+    });
 
     // 점수순으로 정렬하고 상위 N개 반환
     return scoredVideos
@@ -259,7 +242,9 @@ export async function getPersonalizedRecommendations(
         return popularVideos.map(video => ({
           ...video,
           keywords: parseKeywords(video.keywords),
-          thumbnail: getYouTubeThumbnail(video)
+          thumbnail: video.image_url ||
+            (video.youtube_url ? `https://img.youtube.com/vi/${extractYouTubeId(video.youtube_url)}/maxresdefault.jpg` : "/placeholder.svg"),
+          youtube_url: video.youtube_url
         }));
       }
       return [];
@@ -334,7 +319,9 @@ export async function getPersonalizedRecommendations(
       return {
         ...video,
         keywords,
-        thumbnail: getYouTubeThumbnail(video),
+        thumbnail: video.image_url ||
+          (video.youtube_url ? `https://img.youtube.com/vi/${extractYouTubeId(video.youtube_url)}/maxresdefault.jpg` : "/placeholder.svg"),
+        youtube_url: video.youtube_url,
         score
       };
     });
