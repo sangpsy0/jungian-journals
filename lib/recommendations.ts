@@ -10,7 +10,7 @@ interface Video {
   tab?: string; // 하위 호환성을 위해 유지
   youtube_id?: string;
   youtubeId?: string; // 하위 호환성
-  thumbnail: string;
+  thumbnail?: string;  // Optional로 변경
   created_at?: string;  // Supabase 기본 타임스탬프
   added_date?: string;  // 커스텀 필드 (있을 경우)
   addedDate?: string;   // 하위 호환성
@@ -20,6 +20,15 @@ interface Video {
   content?: string;
   image_url?: string;
   view_count?: number;
+}
+
+// YouTube 썸네일 URL 생성 헬퍼 함수
+function getYouTubeThumbnail(video: Video): string {
+  const youtubeId = video.youtube_id || video.youtubeId;
+  if (youtubeId) {
+    return `https://img.youtube.com/vi/${youtubeId}/mqdefault.jpg`;
+  }
+  return video.image_url || video.thumbnail || '/placeholder.svg';
 }
 
 // keywords를 배열로 변환하는 헬퍼 함수
@@ -134,6 +143,7 @@ export async function getKeywordBasedRecommendations(
     const scoredVideos = allVideos.map(video => ({
       ...video,
       keywords: parseKeywords(video.keywords), // keywords를 배열로 변환
+      thumbnail: getYouTubeThumbnail(video), // 썸네일 URL 생성
       score: calculateRecommendationScore(currentVideo, video)
     }));
 
@@ -221,14 +231,21 @@ export async function getPersonalizedRecommendations(
         .order('view_count', { ascending: false })
         .limit(limit);
 
-      return popularVideos || [];
+      if (popularVideos) {
+        return popularVideos.map(video => ({
+          ...video,
+          keywords: parseKeywords(video.keywords),
+          thumbnail: getYouTubeThumbnail(video)
+        }));
+      }
+      return [];
     }
 
     // 시청한 비디오들의 키워드와 카테고리 수집
     const viewedVideoIds = viewHistory.map(h => h.video_id);
     const { data: viewedVideos, error: videosError } = await supabase
       .from('video_content')
-      .select('keywords, tab')
+      .select('keywords, category')
       .in('id', viewedVideoIds);
 
     if (videosError || !viewedVideos) {
@@ -237,22 +254,23 @@ export async function getPersonalizedRecommendations(
 
     // 선호 키워드와 카테고리 집계
     const keywordCounts: Record<string, number> = {};
-    const tabCounts: Record<string, number> = {};
+    const categoryCounts: Record<string, number> = {};
 
     viewedVideos.forEach(video => {
-      video.keywords?.forEach((keyword: string) => {
+      const keywords = parseKeywords(video.keywords);
+      keywords.forEach((keyword: string) => {
         keywordCounts[keyword.toLowerCase()] = (keywordCounts[keyword.toLowerCase()] || 0) + 1;
       });
-      if (video.tab) {
-        tabCounts[video.tab] = (tabCounts[video.tab] || 0) + 1;
+      if (video.category) {
+        categoryCounts[video.category] = (categoryCounts[video.category] || 0) + 1;
       }
     });
 
     // 가장 많이 본 카테고리와 키워드 기반으로 추천
-    const topTabs = Object.entries(tabCounts)
+    const topCategories = Object.entries(categoryCounts)
       .sort(([, a], [, b]) => b - a)
       .slice(0, 2)
-      .map(([tab]) => tab);
+      .map(([category]) => category);
 
     const topKeywords = Object.entries(keywordCounts)
       .sort(([, a], [, b]) => b - a)
@@ -264,7 +282,7 @@ export async function getPersonalizedRecommendations(
       .from('video_content')
       .select('*')
       .not('id', 'in', `(${viewedVideoIds.join(',')})`)
-      .or(`tab.in.(${topTabs.join(',')}),keywords.cs.{${topKeywords.join(',')}}`)
+      .or(`category.in.(${topCategories.join(',')}),keywords.cs.{${topKeywords.join(',')}}`)
       .limit(limit * 2);
 
     if (recError || !recommendations) {
@@ -276,19 +294,25 @@ export async function getPersonalizedRecommendations(
       let score = 0;
 
       // 선호 카테고리 매칭
-      if (topTabs.includes(video.tab)) {
-        score += 30 * (tabCounts[video.tab] || 0);
+      if (topCategories.includes(video.category)) {
+        score += 30 * (categoryCounts[video.category] || 0);
       }
 
       // 선호 키워드 매칭
-      video.keywords?.forEach((keyword: string) => {
+      const keywords = parseKeywords(video.keywords);
+      keywords.forEach((keyword: string) => {
         const lowerKeyword = keyword.toLowerCase();
         if (keywordCounts[lowerKeyword]) {
           score += 10 * keywordCounts[lowerKeyword];
         }
       });
 
-      return { ...video, score };
+      return {
+        ...video,
+        keywords,
+        thumbnail: getYouTubeThumbnail(video),
+        score
+      };
     });
 
     return scoredRecommendations

@@ -179,7 +179,13 @@ export function VideoRecommendations({
                   <Card className="group transition-all duration-200 hover:shadow-lg hover:scale-[1.02] cursor-pointer">
                     <div className="relative overflow-hidden rounded-t-lg" onClick={() => onVideoSelect(video)}>
                       <img
-                        src={video.image_url || video.thumbnail || "/placeholder.svg"}
+                        src={
+                          video.image_url ||
+                          video.thumbnail ||
+                          (video.youtube_id || video.youtubeId ?
+                            `https://img.youtube.com/vi/${video.youtube_id || video.youtubeId}/mqdefault.jpg` :
+                            "/placeholder.svg")
+                        }
                         alt={video.title}
                         className="w-full h-48 object-cover transition-transform duration-200 group-hover:scale-105"
                       />
