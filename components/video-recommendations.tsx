@@ -64,22 +64,24 @@ export function VideoRecommendations({
 
   useEffect(() => {
     async function fetchRecommendations() {
+      // Only fetch recommendations if user is logged in
+      if (!user) {
+        setLoading(false);
+        setRecommendations([]);
+        return;
+      }
+
       setLoading(true);
       try {
         let videos: Video[] = [];
 
-        if (user) {
-          // 로그인한 사용자: 개인화된 추천
-          videos = await getPersonalizedRecommendations(user.id, 6);
+        // 로그인한 사용자: 개인화된 추천
+        videos = await getPersonalizedRecommendations(user.id, 6);
 
-          // 개인화 추천이 부족하면 일반 추천으로 보충
-          if (videos.length < 6) {
-            const generalRecs = await getRecommendations(currentVideoId, undefined, 6 - videos.length);
-            videos = [...videos, ...generalRecs];
-          }
-        } else {
-          // 비로그인 사용자: 키워드 기반 추천
-          videos = await getRecommendations(currentVideoId, undefined, 6);
+        // 개인화 추천이 부족하면 일반 추천으로 보충
+        if (videos.length < 6) {
+          const generalRecs = await getRecommendations(currentVideoId, undefined, 6 - videos.length);
+          videos = [...videos, ...generalRecs];
         }
 
         setRecommendations(videos);
@@ -93,10 +95,24 @@ export function VideoRecommendations({
     fetchRecommendations();
   }, [currentVideoId, user]);
 
+  // For non-logged users, only show the sign-in prompt
+  if (!user) {
+    return (
+      <div className="mt-8 border-t pt-8">
+        <div className="p-4 bg-muted rounded-lg text-center">
+          <p className="text-sm text-muted-foreground">
+            Sign in to get personalized AI recommendations
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // Loading state for logged-in users
   if (loading) {
     return (
       <div className="mt-8">
-        <h3 className="text-lg font-semibold mb-4">추천 콘텐츠</h3>
+        <h3 className="text-lg font-semibold mb-4">Recommended Content</h3>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {[...Array(6)].map((_, i) => (
             <Card key={i} className="overflow-hidden">
@@ -229,14 +245,6 @@ export function VideoRecommendations({
           })}
         </div>
       </TooltipProvider>
-
-      {!user && (
-        <div className="mt-6 p-4 bg-muted rounded-lg text-center">
-          <p className="text-sm text-muted-foreground">
-            Sign in to get personalized AI recommendations
-          </p>
-        </div>
-      )}
     </div>
   );
 }

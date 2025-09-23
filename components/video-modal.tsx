@@ -145,7 +145,7 @@ export function VideoModal({ video, isOpen, onClose }: VideoModalProps) {
             )}
           </div>
 
-          {/* 추천 콘텐츠 섹션 - 로그인한 사용자에게만 표시 */}
+          {/* 추천 콘텐츠 섹션 - VideoRecommendations 컴포넌트가 로그인 체크 처리 */}
           <VideoRecommendations
             currentVideoId={currentVideo.id}
             currentVideo={currentVideo}
