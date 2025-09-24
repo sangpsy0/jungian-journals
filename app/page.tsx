@@ -35,13 +35,12 @@ export default function HomePage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [videos, setVideos] = useState<ContentItem[]>([])
-  const [displayedVideos, setDisplayedVideos] = useState<ContentItem[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedKeyword, setSelectedKeyword] = useState<string | null>(null)
   const [selectedAlphabet, setSelectedAlphabet] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<TabType>("Journals")
-  const [hasMore, setHasMore] = useState(true)
+  const [displayCount, setDisplayCount] = useState(12)
   const ITEMS_PER_PAGE = 12
   const { user } = useAuth()
 
@@ -192,14 +191,9 @@ export default function HomePage() {
       })
 
       // 모든 콘텐츠 저장 (랜덤 순서)
-      const allContent = [...formattedVideos, ...formattedBlogs].sort(() => Math.random() - 0.5)
+      const allContent = [...formattedVideos, ...formattedBlogs]
       setVideos(allContent)
-
-      // 초기 표시: Journals 탭 콘텐츠만 랜덤하게
-      const journalsContent = allContent.filter(v => v.tab === "Journals")
-      const shuffledJournals = [...journalsContent].sort(() => Math.random() - 0.5)
-      setDisplayedVideos(shuffledJournals.slice(0, ITEMS_PER_PAGE))
-      setHasMore(shuffledJournals.length > ITEMS_PER_PAGE)
+      setDisplayCount(ITEMS_PER_PAGE)
     } catch (error) {
       console.error('데이터 로드 중 오류:', error)
     } finally {
@@ -218,8 +212,9 @@ export default function HomePage() {
     fetchContent()
   }, [])
 
+  // 필터링된 비디오 (전체 videos에서 필터링)
   const filteredVideos = useMemo(() => {
-    return displayedVideos.filter((video) => {
+    const filtered = videos.filter((video) => {
       const matchesTab = video.tab === activeTab
 
       const matchesSearch =
@@ -232,7 +227,17 @@ export default function HomePage() {
 
       return matchesTab && matchesSearch && matchesKeyword
     })
-  }, [displayedVideos, searchTerm, selectedKeyword, activeTab])
+
+    // 필터링된 결과를 랜덤하게 섞기
+    return [...filtered].sort(() => Math.random() - 0.5)
+  }, [videos, searchTerm, selectedKeyword, activeTab])
+
+  // 화면에 표시할 비디오 (페이지네이션 적용)
+  const displayedFilteredVideos = useMemo(() => {
+    return filteredVideos.slice(0, displayCount)
+  }, [filteredVideos, displayCount])
+
+  const hasMore = displayCount < filteredVideos.length
 
   // 스크롤 이벤트 처리
   useEffect(() => {
@@ -245,29 +250,10 @@ export default function HomePage() {
 
     window.addEventListener('scroll', handleScroll)
     return () => window.removeEventListener('scroll', handleScroll)
-  }, [loading, hasMore, displayedVideos])
+  }, [loading, hasMore])
 
   const loadMore = () => {
-    const allFilteredVideos = videos.filter((video) => {
-      const matchesTab = video.tab === activeTab
-      const matchesSearch =
-        searchTerm === "" ||
-        video.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (video.summary && video.summary.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        video.keywords.some((keyword) => keyword.toLowerCase().includes(searchTerm.toLowerCase()))
-      const matchesKeyword = !selectedKeyword || video.keywords.includes(selectedKeyword)
-      return matchesTab && matchesSearch && matchesKeyword
-    })
-
-    const currentLength = displayedVideos.length
-    const nextItems = allFilteredVideos.slice(currentLength, currentLength + ITEMS_PER_PAGE)
-
-    if (nextItems.length > 0) {
-      setDisplayedVideos(prev => [...prev, ...nextItems])
-      setHasMore(currentLength + nextItems.length < allFilteredVideos.length)
-    } else {
-      setHasMore(false)
-    }
+    setDisplayCount(prev => Math.min(prev + ITEMS_PER_PAGE, filteredVideos.length))
   }
 
   const keywordsByAlphabet = useMemo(() => {
@@ -296,11 +282,13 @@ export default function HomePage() {
   const handleAlphabetClick = (letter: string) => {
     setSelectedAlphabet(selectedAlphabet === letter ? null : letter)
     setSelectedKeyword(null)
+    setDisplayCount(ITEMS_PER_PAGE)
   }
 
 
   const handleKeywordClick = (keyword: string) => {
     setSelectedKeyword(keyword === selectedKeyword ? null : keyword)
+    setDisplayCount(ITEMS_PER_PAGE)
   }
 
 
@@ -309,12 +297,7 @@ export default function HomePage() {
     setActiveTab(tab)
     setSelectedKeyword(null)
     setSelectedAlphabet(null)
-
-    // 탭 변경시 해당 탭의 콘텐츠를 랜덤하게 섞어서 표시
-    const tabVideos = videos.filter(v => v.tab === tab)
-    const shuffled = [...tabVideos].sort(() => Math.random() - 0.5)
-    setDisplayedVideos(shuffled.slice(0, ITEMS_PER_PAGE))
-    setHasMore(shuffled.length > ITEMS_PER_PAGE)
+    setDisplayCount(ITEMS_PER_PAGE)
   }
 
   const handleHomeClick = () => {
@@ -486,7 +469,7 @@ export default function HomePage() {
 
           <main className="container mx-auto px-4 pb-12">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {filteredVideos.map((video) => (
+              {displayedFilteredVideos.map((video) => (
                 <ContentCard
                   key={video.id}
                   video={video}
@@ -509,17 +492,21 @@ export default function HomePage() {
               </div>
             )}
 
-            {!loading && filteredVideos.length === 0 && (
+            {!loading && displayedFilteredVideos.length === 0 && (
               <div className="text-center py-12">
                 <p className="text-muted-foreground text-lg">
                   {videos.length === 0
                     ? `No content available in ${activeTab} yet.`
+                    : selectedKeyword
+                    ? `No content found with keyword "${selectedKeyword}" in ${activeTab}`
                     : "No search results found."
                   }
                 </p>
                 <p className="text-muted-foreground">
                   {videos.length === 0
                     ? "Content will appear here once added by admin."
+                    : selectedKeyword
+                    ? "Try selecting a different keyword or clear the filter."
                     : "Try searching with different keywords."
                   }
                 </p>
