@@ -1,10 +1,11 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useMemo } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { ArrowLeft, Calendar, Tag, Play } from "lucide-react"
+import { ArrowLeft, Calendar, Tag, Play, Search } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Input } from "@/components/ui/input"
 import { supabase } from "@/lib/supabase"
 import { VideoRecommendations } from "@/components/video-recommendations"
 import { useAuth } from "@/components/auth-provider"
@@ -38,6 +39,10 @@ export default function VideoPage() {
   const { user } = useAuth()
   const [video, setVideo] = useState<VideoContent | null>(null)
   const [loading, setLoading] = useState(true)
+  const [allVideos, setAllVideos] = useState<VideoContent[]>([])
+  const [selectedKeyword, setSelectedKeyword] = useState<string | null>(null)
+  const [selectedAlphabet, setSelectedAlphabet] = useState<string | null>(null)
+  const [searchTerm, setSearchTerm] = useState("")
 
   useEffect(() => {
     const fetchVideo = async () => {
@@ -89,10 +94,79 @@ export default function VideoPage() {
     }
   }, [params.id])
 
+  // 모든 비디오 가져오기 (키워드 목록 생성용)
+  useEffect(() => {
+    const fetchAllVideos = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('video_content')
+          .select('*')
+          .order('created_at', { ascending: false })
+
+        if (error) throw error
+
+        const processedVideos = data.map(v => {
+          let keywords = []
+          if (v.keywords) {
+            if (typeof v.keywords === 'string') {
+              try {
+                keywords = JSON.parse(v.keywords)
+              } catch {
+                keywords = v.keywords.split(',').map(k => k.trim()).filter(k => k)
+              }
+            } else if (Array.isArray(v.keywords)) {
+              keywords = v.keywords
+            }
+          }
+          return { ...v, keywords, type: 'video' as const }
+        })
+
+        setAllVideos(processedVideos)
+      } catch (error) {
+        console.error('Error fetching all videos:', error)
+      }
+    }
+
+    fetchAllVideos()
+  }, [])
+
   const extractYouTubeId = (url: string): string => {
     const regExp = /^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(watch\?))\??v?=?([^#&?]*).*/
     const match = url.match(regExp)
     return (match && match[7].length === 11) ? match[7] : ''
+  }
+
+  // 알파벳별로 키워드 그룹화
+  const keywordsByAlphabet = useMemo(() => {
+    const allKeywords = allVideos.flatMap((v) => v.keywords)
+    const uniqueKeywords = Array.from(new Set(allKeywords))
+    const englishKeywords = uniqueKeywords.filter((keyword) => /^[a-zA-Z0-9\s\-_]+$/.test(keyword)).sort()
+
+    const alphabetGroups: Record<string, string[]> = {}
+
+    for (let i = 65; i <= 90; i++) {
+      const letter = String.fromCharCode(i)
+      alphabetGroups[letter] = []
+    }
+
+    englishKeywords.forEach((keyword) => {
+      const firstLetter = keyword.charAt(0).toUpperCase()
+      if (alphabetGroups[firstLetter]) {
+        alphabetGroups[firstLetter].push(keyword)
+      }
+    })
+
+    return alphabetGroups
+  }, [allVideos])
+
+  const handleAlphabetClick = (letter: string) => {
+    setSelectedAlphabet(selectedAlphabet === letter ? null : letter)
+    setSelectedKeyword(null)
+  }
+
+  const handleKeywordSearch = (keyword: string) => {
+    // 키워드 검색 시 홈페이지로 이동하며 키워드 파라미터 전달
+    router.push(`/?keyword=${encodeURIComponent(keyword)}`)
   }
 
   if (loading) {
@@ -170,9 +244,92 @@ export default function VideoPage() {
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="container mx-auto px-4 py-8">
-        <div className="max-w-5xl mx-auto">
+      <div className="flex">
+        {/* Keyword Sidebar */}
+        <aside className="w-64 border-r bg-muted/30 min-h-screen sticky top-16">
+          <div className="p-4">
+            <h3 className="font-semibold text-sm text-muted-foreground mb-4 uppercase tracking-wide">Keywords</h3>
+
+            <Button
+              variant={selectedKeyword === null ? "default" : "ghost"}
+              size="sm"
+              className="w-full justify-start mb-4"
+              onClick={() => {
+                setSelectedKeyword(null)
+                setSelectedAlphabet(null)
+              }}
+            >
+              All Keywords
+            </Button>
+
+            <div className="grid grid-cols-4 gap-1 mb-4">
+              {Object.entries(keywordsByAlphabet).map(([letter, keywords]) => (
+                <Button
+                  key={letter}
+                  variant={selectedAlphabet === letter ? "default" : "ghost"}
+                  size="sm"
+                  className={`h-8 text-xs font-medium ${keywords.length === 0 ? "opacity-30 cursor-not-allowed" : ""}`}
+                  onClick={() => keywords.length > 0 && handleAlphabetClick(letter)}
+                  disabled={keywords.length === 0}
+                >
+                  {letter}
+                </Button>
+              ))}
+            </div>
+
+            {selectedAlphabet && keywordsByAlphabet[selectedAlphabet].length > 0 && (
+              <div className="space-y-1">
+                <div className="text-xs font-medium text-muted-foreground mb-2">{selectedAlphabet} Keywords</div>
+                {keywordsByAlphabet[selectedAlphabet].map((keyword) => {
+                  const videoCount = allVideos.filter(
+                    (v) => v.keywords.includes(keyword),
+                  ).length
+                  return (
+                    <Button
+                      key={keyword}
+                      variant={selectedKeyword === keyword ? "default" : "ghost"}
+                      size="sm"
+                      className="w-full justify-start text-xs h-7"
+                      onClick={() => handleKeywordSearch(keyword)}
+                    >
+                      <Tag className="h-3 w-3 mr-1" />
+                      {keyword}
+                      <Badge variant="outline" className="ml-auto text-xs">
+                        {videoCount}
+                      </Badge>
+                    </Button>
+                  )
+                })}
+              </div>
+            )}
+
+            {/* Current Video Keywords */}
+            {video.keywords && video.keywords.length > 0 && (
+              <div className="mt-6 border-t pt-4">
+                <div className="text-xs font-medium text-muted-foreground mb-2">이 영상의 키워드</div>
+                <div className="space-y-1">
+                  {(Array.isArray(video.keywords) ? video.keywords : []).map((keyword) => (
+                    <Button
+                      key={keyword}
+                      variant="ghost"
+                      size="sm"
+                      className="w-full justify-start text-xs h-7"
+                      onClick={() => handleKeywordSearch(keyword)}
+                    >
+                      <Tag className="h-3 w-3 mr-1" />
+                      {keyword}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </aside>
+
+        {/* Main Content */}
+        <div className="flex-1">
+          <main className="container mx-auto px-4 py-8">
+            <div className="max-w-5xl mx-auto">
           {/* Video Title and Meta */}
           <div className="mb-6">
             <h1 className="text-3xl font-bold mb-4">{video.title}</h1>
@@ -226,14 +383,16 @@ export default function VideoPage() {
             </div>
           )}
 
-          {/* 추천 콘텐츠 섹션 */}
-          <VideoRecommendations
-            currentVideoId={video.id}
-            currentVideo={video}
-            onVideoSelect={handleVideoSelect}
-          />
+              {/* 추천 콘텐츠 섹션 */}
+              <VideoRecommendations
+                currentVideoId={video.id}
+                currentVideo={video}
+                onVideoSelect={handleVideoSelect}
+              />
+            </div>
+          </main>
         </div>
-      </main>
+      </div>
     </div>
   )
 }

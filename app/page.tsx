@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useMemo, useEffect } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { Search, Play, Tag, Calendar, Star } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -33,6 +33,7 @@ type TabType = "Journals" | "Books" | "Fairy Tales" | "Blog by AI"
 
 export default function HomePage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [videos, setVideos] = useState<ContentItem[]>([])
   const [displayedVideos, setDisplayedVideos] = useState<ContentItem[]>([])
   const [loading, setLoading] = useState(true)
@@ -43,6 +44,19 @@ export default function HomePage() {
   const [hasMore, setHasMore] = useState(true)
   const ITEMS_PER_PAGE = 12
   const { user } = useAuth()
+
+  // URL 파라미터에서 키워드 가져오기
+  useEffect(() => {
+    const keyword = searchParams.get('keyword')
+    if (keyword) {
+      setSelectedKeyword(keyword)
+      // 키워드의 첫 글자로 알파벳 선택
+      const firstLetter = keyword.charAt(0).toUpperCase()
+      if (/[A-Z]/.test(firstLetter)) {
+        setSelectedAlphabet(firstLetter)
+      }
+    }
+  }, [searchParams])
 
   // Supabase에서 콘텐츠 데이터 가져오기
   const fetchContent = async () => {
